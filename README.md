@@ -64,7 +64,7 @@ Principales pantallas:
     Inicio
     Explorador
     Editor
-    Configuración
+    Ajustes
 
 El editor personalizado utiliza renderizado propio para el área de código.
 

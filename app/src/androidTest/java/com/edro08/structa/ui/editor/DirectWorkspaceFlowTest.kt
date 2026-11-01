@@ -26,8 +26,11 @@ class DirectWorkspaceFlowTest {
         val history = AndroidWorkspaceHistoryRepository(context, settings)
         val alreadyRecent = history.all().any { it.id == download }
         try {
-            compose.onNodeWithText("Configuración").performClick()
+            compose.onNodeWithText("Ajustes").performClick()
             compose.onNodeWithText("Acceso completo").performScrollTo().performClick()
+            assertEquals("DIRECT", settings.fileAccessProvider())
+            compose.onNodeWithText("Inicio").performClick()
+            compose.onNodeWithText("Abrir workspace").performClick()
             compose.onNodeWithText("Seleccionar carpeta").assertExists()
             compose.onNodeWithText("Download").performScrollTo().performClick()
             compose.onNodeWithText("Usar esta carpeta").performClick()

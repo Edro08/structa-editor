@@ -6,6 +6,7 @@
     <string name="browser_use_folder">Usar esta carpeta</string>
     <string name="browser_workspace">Workspace</string>
     <string name="browser_refresh">Actualizar</string>
+    <string name="browser_add">Agregar</string>
     <string name="browser_new_file">Nuevo archivo</string>
     <string name="browser_new_folder">Nueva carpeta</string>
     <string name="browser_search_hint">Buscar por nombre</string>
