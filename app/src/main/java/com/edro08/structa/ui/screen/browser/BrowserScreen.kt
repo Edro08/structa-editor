@@ -1,11 +1,16 @@
 package com.edro08.structa.ui.screen.browser
 
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material3.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.NoteAdd
@@ -13,6 +18,10 @@ import androidx.compose.material.icons.filled.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
@@ -24,6 +33,7 @@ import com.edro08.structa.ui.component.*
 import com.edro08.structa.ui.theme.ScreenStyle
 import com.edro08.structa.ui.theme.StructaSpacing
 import com.edro08.structa.ui.theme.StructaSizes
+import com.edro08.structa.ui.theme.StructaLavender
 
 enum class BrowserMode { EXPLORE, SELECT_DIRECTORY }
 
@@ -67,49 +77,170 @@ fun BrowserScreen(state: BrowserUiState, onBack: () -> Unit, onChooseFolder: () 
             if (selecting) Text(stringResource(R.string.browser_direct_subtitle), style = MaterialTheme.typography.labelSmall)
         } }, onBack = onBack) }) { padding ->
         Column(Modifier.fillMaxSize().padding(padding)) {
-            WorkspacePanel(Modifier.fillMaxWidth().padding(horizontal = ScreenStyle.pagePadding), compact = true) {
-                Row(Modifier.horizontalScroll(rememberScrollState()).heightIn(min = 28.dp),
-                    verticalAlignment = Alignment.CenterVertically) {
-                    TextButton(onClick = if (selecting) {{ onBreadcrumb(0) }} else onChooseFolder, enabled = !state.busy,
-                        contentPadding = PaddingValues(horizontal = 6.dp)) {
-                        Icon(Icons.Filled.Folder, contentDescription = null, modifier = Modifier.size(22.dp))
-                        Spacer(Modifier.width(12.dp))
-                        Text(stringResource(if (selecting) R.string.browser_internal_storage else R.string.browser_workspace))
+            val colors = MaterialTheme.colorScheme
+            val searchShape = RoundedCornerShape(14.dp)
+            val searchBorder = colors.outlineVariant.copy(alpha = 0.4f)
+
+            // Fila de Breadcrumbs (izquierda) y Acciones rápidas [↻] [+] (derecha)
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = ScreenStyle.pagePadding, vertical = 6.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                // Ruta de navegación (Breadcrumb)
+                Row(
+                    modifier = Modifier
+                        .weight(1f)
+                        .horizontalScroll(rememberScrollState()),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Row(
+                        modifier = Modifier.clickable(
+                            enabled = !state.busy,
+                            onClick = if (selecting) {{ onBreadcrumb(0) }} else onChooseFolder
+                        ),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            imageVector = Icons.Filled.Folder,
+                            contentDescription = null,
+                            modifier = Modifier.size(22.dp),
+                            tint = StructaLavender
+                        )
+                        Spacer(Modifier.width(10.dp))
+                        Text(
+                            text = stringResource(if (selecting) R.string.browser_internal_storage else R.string.browser_workspace),
+                            style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium),
+                            color = colors.onSurface
+                        )
                     }
                     (if (selecting) state.breadcrumbs.drop(1) else state.breadcrumbs).forEachIndexed { index, folder ->
-                        Icon(Icons.Filled.ChevronRight, contentDescription = null,
-                            modifier = Modifier.size(StructaSizes.breadcrumbIcon),
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant)
-                        if (selecting) TextButton(onClick = { onBreadcrumb(index + 1) }) { Text(folder, maxLines = 1) }
-                        else Text(folder, Modifier.padding(horizontal = StructaSpacing.compact), maxLines = 1)
+                        Icon(
+                            imageVector = Icons.Filled.ChevronRight,
+                            contentDescription = null,
+                            modifier = Modifier
+                                .padding(horizontal = 6.dp)
+                                .size(14.dp),
+                            tint = colors.onSurfaceVariant.copy(alpha = 0.6f)
+                        )
+                        Text(
+                            text = folder,
+                            modifier = Modifier.clickable(enabled = selecting) { onBreadcrumb(index + 1) },
+                            maxLines = 1,
+                            style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium),
+                            color = colors.onSurface
+                        )
+                    }
+                }
+
+                // Acciones a la derecha: [↻] y [+] en lavanda sin contenedor
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    IconButton(
+                        onClick = onRetry,
+                        enabled = !state.busy && state.stack.isNotEmpty(),
+                        modifier = Modifier.size(36.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Filled.Refresh,
+                            contentDescription = stringResource(R.string.browser_refresh),
+                            modifier = Modifier.size(24.dp),
+                            tint = StructaLavender
+                        )
+                    }
+
+                    if (state.stack.isNotEmpty()) {
+                        var addMenuExpanded by remember { mutableStateOf(false) }
+                        Box {
+                            IconButton(
+                                onClick = { addMenuExpanded = true },
+                                enabled = !state.busy,
+                                modifier = Modifier.size(36.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Filled.Add,
+                                    contentDescription = stringResource(R.string.browser_add),
+                                    modifier = Modifier.size(26.dp),
+                                    tint = StructaLavender
+                                )
+                            }
+                            DropdownMenu(
+                                expanded = addMenuExpanded,
+                                onDismissRequest = { addMenuExpanded = false }
+                            ) {
+                                if (!selecting) {
+                                    DropdownMenuItem(
+                                        text = { Text(stringResource(R.string.browser_new_file)) },
+                                        onClick = {
+                                            addMenuExpanded = false
+                                            name = ""
+                                            action = BrowserAction.NEW_FILE
+                                        },
+                                        leadingIcon = {
+                                            Icon(Icons.AutoMirrored.Filled.NoteAdd, contentDescription = null)
+                                        }
+                                    )
+                                }
+                                DropdownMenuItem(
+                                    text = { Text(stringResource(R.string.browser_new_folder)) },
+                                    onClick = {
+                                        addMenuExpanded = false
+                                        name = ""
+                                        action = BrowserAction.NEW_FOLDER
+                                    },
+                                    leadingIcon = {
+                                        Icon(Icons.Filled.CreateNewFolder, contentDescription = null)
+                                    }
+                                )
+                            }
+                        }
                     }
                 }
             }
-            Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState())
-                .padding(horizontal = ScreenStyle.pagePadding, vertical = 12.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                OutlinedIconButton(onClick = onRetry, enabled = !state.busy && state.stack.isNotEmpty(),
-                    modifier = Modifier.size(45.dp)) {
-                    Icon(Icons.Filled.Refresh, contentDescription = stringResource(R.string.browser_refresh))
+
+            // Barra de búsqueda expandida a todo el ancho
+            BasicTextField(
+                value = state.query,
+                onValueChange = onQuery,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = ScreenStyle.pagePadding, vertical = 4.dp)
+                    .height(44.dp)
+                    .background(colors.surface, searchShape)
+                    .border(1.dp, searchBorder, searchShape)
+                    .padding(horizontal = 14.dp),
+                singleLine = true,
+                textStyle = MaterialTheme.typography.bodyMedium.copy(color = colors.onSurface),
+                cursorBrush = SolidColor(colors.primary),
+                decorationBox = { innerTextField ->
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.fillMaxSize()
+                    ) {
+                        Icon(
+                            imageVector = Icons.Filled.Search,
+                            contentDescription = null,
+                            modifier = Modifier.size(20.dp),
+                            tint = colors.onSurfaceVariant
+                        )
+                        Spacer(Modifier.width(10.dp))
+                        Box(Modifier.weight(1f), contentAlignment = Alignment.CenterStart) {
+                            if (state.query.isEmpty()) {
+                                Text(
+                                    stringResource(R.string.browser_search_hint),
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = colors.onSurfaceVariant
+                                )
+                            }
+                            innerTextField()
+                        }
+                    }
                 }
-                if (state.stack.isNotEmpty()) {
-                    if (!selecting) WorkspaceActionChip(stringResource(R.string.browser_new_file), Icons.AutoMirrored.Filled.NoteAdd,
-                        !state.busy) { name = ""; action = BrowserAction.NEW_FILE }
-                    WorkspaceActionChip(stringResource(R.string.browser_new_folder), Icons.Filled.CreateNewFolder,
-                        !state.busy) { name = ""; action = BrowserAction.NEW_FOLDER }
-                }
-            }
-            TextField(value = state.query, onValueChange = onQuery,
-                modifier = Modifier.fillMaxWidth().padding(horizontal = ScreenStyle.pagePadding, vertical = 2.dp),
-                singleLine = true, placeholder = { Text(stringResource(R.string.browser_search_hint)) },
-                leadingIcon = { Icon(Icons.Filled.Search, contentDescription = null) },
-                shape = RoundedCornerShape(ScreenStyle.panelRadius),
-                colors = TextFieldDefaults.colors(focusedContainerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
-                    unfocusedContainerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
-                    focusedIndicatorColor = androidx.compose.ui.graphics.Color.Transparent,
-                    unfocusedIndicatorColor = androidx.compose.ui.graphics.Color.Transparent))
-            Spacer(Modifier.height(7.dp))
+            )
+            Spacer(Modifier.height(6.dp))
             Box(Modifier.weight(1f).fillMaxWidth()) { when {
                 state.stack.isEmpty() -> EmptyScreen(stringResource(R.string.browser_no_folder)) {
                     if (!selecting) Button(onClick = onChooseFolder) { Text(stringResource(R.string.common_choose_folder)) }
@@ -138,16 +269,20 @@ fun BrowserScreen(state: BrowserUiState, onBack: () -> Unit, onChooseFolder: () 
                         }
                         addEntries(state.entries, 0)
                     }
-                    LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(
-                        start = ScreenStyle.pagePadding, end = ScreenStyle.pagePadding, bottom = ScreenStyle.sectionGap),
-                        verticalArrangement = Arrangement.spacedBy(ScreenStyle.tileGap)) {
-                        items(rows, key = { it.first.id.value }) { (entry, depth) ->
+                    LazyColumn(
+                        modifier = Modifier.fillMaxSize(),
+                        contentPadding = PaddingValues(bottom = ScreenStyle.sectionGap)
+                    ) {
+                        itemsIndexed(rows, key = { _, pair -> pair.first.id.value }) { index, (entry, depth) ->
                             var menu by remember { mutableStateOf(false) }
-                            FileRow(entry, onClick = { onEntry(entry) },
+                            FileRow(
+                                entry = entry,
+                                onClick = { onEntry(entry) },
                                 modifier = Modifier.padding(start = (depth * 14).dp),
                                 detail = if (entry.isDirectory) state.children[entry.id]?.let {
-                                pluralStringResource(R.plurals.browser_folder_elements, it.size, it.size)
-                            } else null) {
+                                    pluralStringResource(R.plurals.browser_folder_elements, it.size, it.size)
+                                } else null
+                            ) {
                                 if (!selecting) Box {
                                     IconButton(onClick = { menu = true }, enabled = !state.busy,
                                         modifier = Modifier.size(38.dp)) {
@@ -173,6 +308,10 @@ fun BrowserScreen(state: BrowserUiState, onBack: () -> Unit, onChooseFolder: () 
                                     }
                                 }
                             }
+                            HorizontalDivider(
+                                color = colors.outlineVariant.copy(alpha = 0.2f),
+                                thickness = 0.5.dp
+                            )
                         }
                     }
                 }

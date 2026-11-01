@@ -2,18 +2,83 @@ package com.edro08.structa.ui.theme
 
 import androidx.compose.ui.graphics.Color
 
-val Purple80 = Color(0xFFD0BCFF)
-val PurpleGrey80 = Color(0xFFCCC2DC)
-val Pink80 = Color(0xFFEFB8C8)
+// --- PALETA OSCURA (Tema Oscuro: Obsidian & Slate) ---
+val DarkBackground = Color(0xFF0E1015)               // Fondo profundo tipo editor
+val DarkSurface = Color(0xFF141720)                  // Superficie principal de tarjetas
+val DarkSurfaceRaised = Color(0xFF1B1E2B)            // Subcontenedores / campos elevados
+val DarkSurfaceContainerLowest = Color(0xFF090A0D)   // Fondo del editor y consolas
+val DarkSurfaceContainerLow = Color(0xFF12141B)      // Degradados de fondo
+val DarkSurfaceContainer = Color(0xFF181B24)         // Contenedores estándar
+val DarkSurfaceContainerHigh = Color(0xFF1F2330)     // Contenedores secundarios
+val DarkSurfaceContainerHighest = Color(0xFF282D3D)  // Píldoras y botones activos
+val DarkOutline = Color(0xFF383E54)                  // Bordes interactivos
+val DarkOutlineVariant = Color(0xFF252937)           // Bordes sutiles de tarjeta
+val DarkTextPrimary = Color(0xFFF3F4F6)              // Texto principal (alto contraste)
+val DarkTextSecondary = Color(0xFF9CA3AF)            // Texto secundario / atenuado
+val DarkTextMuted = Color(0xFF6B7280)                // Texto terciario / descripciones
 
-val Purple40 = Color(0xFF6650a4)
-val PurpleGrey40 = Color(0xFF625b71)
-val Pink40 = Color(0xFF7D5260)
+// --- PALETA CLARA (Tema Claro: Snow & Slate) ---
+val LightBackground = Color(0xFFF8F9FB)              // Fondo blanco nieve
+val LightSurface = Color(0xFFFFFFFF)                 // Tarjetas blanco puro
+val LightSurfaceRaised = Color(0xFFF1F3F7)           // Subcontenedores y campos
+val LightSurfaceContainerLowest = Color(0xFFFFFFFF)  // Fondo claro de código
+val LightSurfaceContainerLow = Color(0xFFF6F8FA)     // Degradados de fondo claro
+val LightSurfaceContainer = Color(0xFFEFF2F6)        // Contenedores estándar claros
+val LightSurfaceContainerHigh = Color(0xFFE8ECF2)    // Contenedores secundarios claros
+val LightSurfaceContainerHighest = Color(0xFFDDE3ED) // Píldoras activas
+val LightOutline = Color(0xFFCBD2DE)                 // Bordes activos
+val LightOutlineVariant = Color(0xFFE2E6EE)          // Bordes sutiles
+val LightTextPrimary = Color(0xFF111827)             // Texto principal negro carbón
+val LightTextSecondary = Color(0xFF4B5563)           // Texto secundario
+val LightTextMuted = Color(0xFF9CA3AF)               // Texto terciario
 
-val StructaBackground = Color(0xFF0D0E12)
-val StructaSurface = Color(0xFF18191F)
-val StructaSurfaceRaised = Color(0xFF22222D)
-val StructaOutline = Color(0xFF31313D)
+// --- ACENTOS Y MARCA (Developer Palette) ---
+val StructaPrimary = Color(0xFFE2E8F0)               // Acento neutro blanco/pizarra claro
+val StructaPrimaryDark = Color(0xFF1E293B)           // Acento neutro oscuro para tema claro
+val StructaSecondary = Color(0xFF94A3B8)             // Acento secundario pizarra
+val StructaCyan = Color(0xFF38BDF8)                  // Cyan para símbolos y acciones clave
+val StructaPurple = Color(0xFF7C3AED)                // Violeta vibrante para CTA primario (Agregar '+')
+val StructaFolder = Color(0xFFB084F4)                // Lila / violeta para iconos de carpeta
+
+// --- ESTADOS DE FEEDBACK ---
+val StatusGreen = Color(0xFF10B981)                  // Éxito / Permiso activo
+val StatusOrange = Color(0xFFF59E0B)                 // Alerta / No guardado
+val StatusRed = Color(0xFFEF4444)                    // Error
+
+// --- SINTAXIS DE CÓDIGO (Tema Oscuro) ---
+val CodeKeywordDark = Color(0xFFC792EA)              // fun, val, class, if
+val CodeFunctionDark = Color(0xFF82AAFF)             // render, println
+val CodeStringDark = Color(0xFFC3E88D)               // "texto"
+val CodeNumberDark = Color(0xFFF78C6C)               // 123, 0xFF
+val CodeCommentDark = Color(0xFF637777)              // // comentario
+val CodeOperatorDark = Color(0xFF89DDFF)             // =, +, ->
+
+// --- SINTAXIS DE CÓDIGO (Tema Claro) ---
+val CodeKeywordLight = Color(0xFF7C3AED)
+val CodeFunctionLight = Color(0xFF2563EB)
+val CodeStringLight = Color(0xFF059669)
+val CodeNumberLight = Color(0xFFD97706)
+val CodeCommentLight = Color(0xFF6B7280)
+val CodeOperatorLight = Color(0xFF0284C7)
+
+// Aliases para retrocompatibilidad
+val CodeKeyword = CodeKeywordDark
+val CodeFunction = CodeFunctionDark
+val CodeString = CodeStringDark
+val CodeNumber = CodeNumberDark
+val CodeComment = CodeCommentDark
+val CodeOperator = CodeOperatorDark
+
+val StructaBackground = DarkBackground
+val StructaSurface = DarkSurface
+val StructaSurfaceRaised = DarkSurfaceRaised
+val StructaOutline = DarkOutline
 val StructaLavender = Color(0xFFCAA8FF)
-val StructaMuted = Color(0xFFB5B2C3)
+val StructaMuted = DarkTextSecondary
 val StructaInk = Color(0xFF171028)
+val Purple80 = DarkTextPrimary
+val PurpleGrey80 = DarkTextSecondary
+val Pink80 = DarkOutline
+val Purple40 = LightTextPrimary
+val PurpleGrey40 = LightTextSecondary
+val Pink40 = LightOutline

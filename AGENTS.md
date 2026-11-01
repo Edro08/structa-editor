@@ -1,10 +1,12 @@
-# Structa — guía del proyecto
+# Agent Instructions
 
-Structa es un editor de texto y código para Android con motor propio en Kotlin.
+Read the applicable specifications in `agents/specs/` before modifying code:
+- `agents/specs/architecture.md`: package boundaries, dependency direction, and composition rules.
 
-## Documentación
+## Context and Progress Tracking
 
-- [Arquitectura y pantallas](agents/specs/arquitectura.md)
-- [Editor Core](agents/specs/editor-core.md)
-- [Fases](agents/specs/fases.md)
-- [Historial](agents/context/historial.md)
+Agents may use the `agents/context/` directory to deposit and maintain context `.md` files for task tracking, reporting, and knowledge retention:
+- `history.md`: chronicle of project milestones, phases, and snapshots. Must start with `# Historial de [project_name]` and list phases/milestones in reverse chronological order (most recent first / cortes en orden cronológico descendente).
+- `phases.md` / `fases.md`: implementation phases, roadmaps, and step-by-step checklists.
+- `reports.md` / `reportes.md`: analysis reports, technical audits, and benchmark summaries.
+- Additional markdown files as needed to retain execution context across sessions.

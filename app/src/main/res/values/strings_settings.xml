@@ -1,5 +1,5 @@
 <resources>
-    <string name="settings_title">Configuración</string>
+    <string name="settings_title">Ajustes</string>
     <string name="settings_theme">Tema</string>
     <string name="settings_theme_description">Apariencia general de la aplicación.</string>
     <string name="settings_dark">Oscuro</string>
@@ -11,7 +11,7 @@
     <string name="settings_font_sans_monospace">Sans monoespaciada</string>
     <string name="settings_font_size">Tamaño de letra: %1$d sp</string>
     <string name="settings_file_access">Acceso a archivos</string>
-    <string name="settings_file_access_description">Selecciona cómo acceder al almacenamiento del dispositivo.</string>
+    <string name="settings_file_access_description">Método de acceso al almacenamiento.</string>
     <string name="settings_provider_saf">SAF</string>
     <string name="settings_saf_description">Acceso estándar de Android.</string>
     <string name="settings_provider_direct">Acceso completo</string>

@@ -137,6 +137,21 @@ fun StructaApp(openIntent: Intent? = null, onOpenIntentHandled: (Intent) -> Unit
         pendingDirectWorkspace = null
         pendingDirectPicker = false
     }
+    fun manageDirectPermission() {
+        try {
+            allFilesPermission.launch(Intent(Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION,
+                Uri.parse("package:${activity.packageName}")))
+        } catch (_: Exception) {
+            try {
+                allFilesPermission.launch(Intent(Settings.ACTION_MANAGE_ALL_FILES_ACCESS_PERMISSION))
+            } catch (_: Exception) {
+                try {
+                    allFilesPermission.launch(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
+                        Uri.parse("package:${activity.packageName}")))
+                } catch (_: Exception) { /* Ignore */ }
+            }
+        }
+    }
     fun requestDirect(openPicker: Boolean) {
         directAuthorized = Environment.isExternalStorageManager()
         if (directAuthorized) {
@@ -223,10 +238,13 @@ fun StructaApp(openIntent: Intent? = null, onOpenIntentHandled: (Intent) -> Unit
                          Screen.SETTINGS -> SettingsScreen(settingsState, onBack = { screen = Screen.HOME },
                              onProvider = { provider ->
                                  settings.selectProvider(provider)
-                                 if (provider == "DIRECT") requestDirect(true)
+                                 if (provider == "DIRECT") {
+                                     directAuthorized = Environment.isExternalStorageManager()
+                                     if (!directAuthorized) requestDirect(false)
+                                 }
                              }, onTheme = settings::selectTheme,
                              onFont = settings::selectFont, onFontSize = settings::selectFontSize,
-                             directAuthorized = directAuthorized, onManagePermission = { requestDirect(false) })
+                             directAuthorized = directAuthorized, onManagePermission = ::manageDirectPermission)
                     }
                     editorState.message?.let { MessageOverlay(it, editor::dismissMessage) }
                      if (quickState.visible) ProductivityPicker(stringResource(R.string.editor_open), quickState.query, quickOpen::setQuery,
