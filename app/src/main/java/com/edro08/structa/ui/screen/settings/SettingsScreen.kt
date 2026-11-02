@@ -94,9 +94,9 @@ fun SettingsScreen(
                 )
             }
 
-            // SECCIÓN 2: EDITOR DE CÓDIGO
+            // SECCIÓN 2: EDITOR DE TEXTO
             item {
-                SettingsCategoryHeader(title = "EDITOR DE CÓDIGO")
+                SettingsCategoryHeader(title = "EDITOR DE TEXTO")
                 Spacer(Modifier.height(8.dp))
 
                 // Fila Tipografía

@@ -242,7 +242,7 @@ class StructaEditorView @JvmOverloads constructor(
         renderer.invalidateContent()
         if (contentChanged) wrappedLayout = null
         scheduleSyntax()
-        contentDescription = "Editor de código, ${engine?.document?.buffer?.lineCount ?: 0} líneas"
+        contentDescription = "Editor de texto, ${engine?.document?.buffer?.lineCount ?: 0} líneas"
         invalidate()
     }
 
