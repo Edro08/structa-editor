@@ -33,9 +33,9 @@ data class StructaCustomColors(
 
 val LocalStructaCustomColors = staticCompositionLocalOf {
     StructaCustomColors(
-        iconTileBackground = DarkSurfaceRaised,
-        iconTileBorder = DarkOutlineVariant,
-        iconTileTint = DarkTextPrimary,
+        iconTileBackground = Color(0x266366F1),
+        iconTileBorder = Color(0x4D6366F1),
+        iconTileTint = StructaLavender,
         textMuted = DarkTextMuted,
         statusSuccess = StatusGreen,
         statusWarning = StatusOrange,
@@ -60,15 +60,15 @@ val MaterialTheme.structaColors: StructaCustomColors
     get() = LocalStructaCustomColors.current
 
 private val DarkColors = darkColorScheme(
-    primary = StructaPrimary,
-    onPrimary = DarkBackground,
-    primaryContainer = DarkSurfaceContainerHighest,
-    onPrimaryContainer = DarkTextPrimary,
-    secondary = StructaSecondary,
-    onSecondary = DarkBackground,
+    primary = StructaPurple,
+    onPrimary = Color.White,
+    primaryContainer = Color(0x336366F1),
+    onPrimaryContainer = StructaLavender,
+    secondary = StructaCyan,
+    onSecondary = Color.White,
     secondaryContainer = DarkSurfaceContainerHigh,
     onSecondaryContainer = DarkTextPrimary,
-    tertiary = StructaCyan,
+    tertiary = StructaFolder,
     background = DarkBackground,
     onBackground = DarkTextPrimary,
     surface = DarkSurface,

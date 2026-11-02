@@ -72,6 +72,10 @@ import com.edro08.structa.ui.component.EmptyScreen
 import com.edro08.structa.ui.component.StructaTopBar
 import com.edro08.structa.ui.component.WorkspaceSelection
 import com.edro08.structa.ui.theme.ScreenStyle
+import com.edro08.structa.ui.theme.StructaLavender
+import com.edro08.structa.ui.theme.StructaPurple
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 
 @Composable
 private fun languageName(language: Language): String = when (language.id) {
@@ -316,10 +320,7 @@ fun EditorScreen(state: EditorUiState, onBack: () -> Unit, onExplore: () -> Unit
                 LinearProgressIndicator(Modifier.fillMaxWidth())
                  Text(stringResource(R.string.editor_opening), Modifier.padding(16.dp))
             } else if (entry == null) {
-                 EmptyScreen(stringResource(R.string.editor_no_file),
-                     stringResource(R.string.editor_no_file_description)) {
-                     Button(onClick = onExplore) { Text(stringResource(R.string.editor_go_explore)) }
-                }
+                EditorEmptyStateView(onExplore = onExplore)
             } else {
                  if (state.formatting || state.saving) LinearProgressIndicator(Modifier.fillMaxWidth())
                   if (showSearch) {
@@ -356,8 +357,9 @@ fun EditorScreen(state: EditorUiState, onBack: () -> Unit, onExplore: () -> Unit
                               shape = searchShape, colors = editorFieldColors())
                       }
                       Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState())
-                          .padding(horizontal = ScreenStyle.pagePadding), verticalAlignment = Alignment.CenterVertically,
-                          horizontalArrangement = Arrangement.spacedBy(5.dp)) {
+                          .padding(horizontal = ScreenStyle.pagePadding, vertical = 6.dp),
+                          verticalAlignment = Alignment.CenterVertically,
+                          horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                           EditorSearchChip(stringResource(R.string.editor_case_sensitive), state.searchOptions.caseSensitive) {
                               onSearchOptions(state.searchOptions.copy(caseSensitive = !state.searchOptions.caseSensitive))
                           }
@@ -368,20 +370,24 @@ fun EditorScreen(state: EditorUiState, onBack: () -> Unit, onExplore: () -> Unit
                               onSearchOptions(state.searchOptions.copy(regex = !state.searchOptions.regex))
                           }
                           if (showReplace) {
-                              Spacer(Modifier.width(6.dp))
+                              Spacer(Modifier.width(4.dp))
                               OutlinedButton(onClick = { onReplace(false) }, enabled = enabled(EditorAction.FIND_NEXT),
-                                  modifier = Modifier.height(34.dp), shape = RoundedCornerShape(20.dp),
-                                  contentPadding = PaddingValues(horizontal = 10.dp)) {
+                                  modifier = Modifier.height(32.dp), shape = RoundedCornerShape(16.dp),
+                                  contentPadding = PaddingValues(horizontal = 12.dp)) {
                                   Text(stringResource(R.string.editor_replace_current), style = MaterialTheme.typography.labelSmall)
                               }
                               Button(onClick = { onReplace(true) },
                                   enabled = enabled(EditorAction.FIND_NEXT) && !state.searchResult.truncated,
-                                  modifier = Modifier.height(34.dp), shape = RoundedCornerShape(20.dp),
-                                  contentPadding = PaddingValues(horizontal = 10.dp)) {
+                                  modifier = Modifier.height(32.dp), shape = RoundedCornerShape(16.dp),
+                                  colors = ButtonDefaults.buttonColors(
+                                      containerColor = StructaPurple,
+                                      contentColor = Color.White
+                                  ),
+                                  contentPadding = PaddingValues(horizontal = 12.dp)) {
                                   Text(stringResource(R.string.editor_replace_all), style = MaterialTheme.typography.labelSmall)
                               }
                           } else {
-                              Spacer(Modifier.width(8.dp))
+                              Spacer(Modifier.width(6.dp))
                               Text(state.searchResult.error ?: if (state.searchResult.truncated)
                                   pluralStringResource(R.plurals.editor_matches_truncated, state.occurrences, state.occurrences)
                                   else pluralStringResource(R.plurals.editor_matches_count, state.occurrences, state.occurrences),
@@ -600,13 +606,92 @@ private fun editorFieldColors(): TextFieldColors = TextFieldDefaults.colors(
 
 @Composable
 private fun EditorSearchChip(label: String, selected: Boolean, onClick: () -> Unit) {
-    val shape = RoundedCornerShape(20.dp)
-    Box(Modifier.height(34.dp).clip(shape)
-        .background(if (selected) MaterialTheme.colorScheme.primary else Color.Transparent)
-        .border(1.dp, if (selected) Color.Transparent else MaterialTheme.colorScheme.outlineVariant, shape)
-        .selectable(selected = selected, role = Role.Checkbox, onClick = onClick)
-        .padding(horizontal = 10.dp), contentAlignment = Alignment.Center) {
-        Text(label, style = MaterialTheme.typography.labelSmall,
-            color = if (selected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface)
+    val shape = RoundedCornerShape(16.dp)
+    Box(
+        modifier = Modifier
+            .height(32.dp)
+            .clip(shape)
+            .background(if (selected) StructaPurple.copy(alpha = 0.22f) else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f))
+            .border(
+                1.dp,
+                if (selected) StructaPurple.copy(alpha = 0.60f) else MaterialTheme.colorScheme.outlineVariant,
+                shape
+            )
+            .selectable(selected = selected, role = Role.Checkbox, onClick = onClick)
+            .padding(horizontal = 12.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        Text(
+            text = label,
+            style = MaterialTheme.typography.labelSmall,
+            fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal,
+            color = if (selected) StructaLavender else MaterialTheme.colorScheme.onSurfaceVariant
+        )
+    }
+}
+
+@Composable
+private fun EditorEmptyStateView(onExplore: () -> Unit) {
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(horizontal = 28.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center,
+            modifier = Modifier.padding(bottom = 32.dp)
+        ) {
+            val iconShape = RoundedCornerShape(16.dp)
+            Box(
+                modifier = Modifier
+                    .size(56.dp)
+                    .clip(iconShape)
+                    .background(StructaPurple.copy(alpha = 0.15f))
+                    .border(1.dp, StructaPurple.copy(alpha = 0.30f), iconShape),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Code,
+                    contentDescription = null,
+                    modifier = Modifier.size(28.dp),
+                    tint = StructaLavender
+                )
+            }
+            Spacer(Modifier.height(18.dp))
+            Text(
+                text = stringResource(R.string.editor_no_file),
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onSurface
+            )
+            Spacer(Modifier.height(8.dp))
+            Text(
+                text = stringResource(R.string.editor_no_file_description),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                textAlign = TextAlign.Center,
+                modifier = Modifier.fillMaxWidth(0.85f)
+            )
+            Spacer(Modifier.height(24.dp))
+            Button(
+                onClick = onExplore,
+                shape = RoundedCornerShape(14.dp),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = StructaPurple,
+                    contentColor = Color.White
+                ),
+                contentPadding = PaddingValues(horizontal = 24.dp, vertical = 12.dp)
+            ) {
+                Icon(Icons.Filled.FolderOpen, contentDescription = null, modifier = Modifier.size(20.dp))
+                Spacer(Modifier.width(8.dp))
+                Text(
+                    text = stringResource(R.string.editor_go_explore),
+                    style = MaterialTheme.typography.labelLarge,
+                    fontWeight = FontWeight.SemiBold
+                )
+            }
+        }
     }
 }

@@ -14,14 +14,13 @@ import org.junit.Test
 class SettingsScreenTest {
     @get:Rule val compose = createComposeRule()
 
-    @Test fun cardsKeepThemeFontSizeAndProviderControlsOperable() {
+    @Test fun cardsKeepThemeFontSizeAndControlsOperable() {
         var dark = true
         var font = EditorFont.MONOSPACE
         var size = 14
-        var provider = "SAF"
         compose.setContent {
             StructaTheme {
-                SettingsScreen(SettingsUiState(), onBack = {}, onProvider = { provider = it },
+                SettingsScreen(SettingsUiState(), onBack = {},
                     onTheme = { dark = it }, onFont = { font = it }, onFontSize = { size = it })
             }
         }
@@ -29,12 +28,10 @@ class SettingsScreenTest {
         compose.onNodeWithText("Sans monoespaciada").performClick()
         compose.onNode(SemanticsMatcher("slider") { it.config.contains(SemanticsActions.SetProgress) })
             .performSemanticsAction(SemanticsActions.SetProgress) { it(20f) }
-        compose.onNodeWithText("Acceso completo").performScrollTo().performClick()
         compose.runOnIdle {
             assertEquals(false, dark)
             assertEquals(EditorFont.SANS_MONOSPACE, font)
             assertEquals(20, size)
-            assertEquals("DIRECT", provider)
         }
     }
 }

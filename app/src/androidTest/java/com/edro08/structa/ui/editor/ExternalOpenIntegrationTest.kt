@@ -4,7 +4,6 @@ import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import androidx.test.core.app.ApplicationProvider
-import com.edro08.structa.data.filesystem.SafFileSystem
 import com.edro08.structa.data.filesystem.externalDocument
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
@@ -24,9 +23,8 @@ class ExternalOpenIntegrationTest {
             val entry = externalDocument(context, uri)
             assertEquals(name, entry.name)
             assertEquals(("content for $name\n").length.toLong(), entry.sizeBytes)
-            val fs = SafFileSystem(context)
-            assertEquals(entry, fs.stat(entry.id))
-            assertEquals("content for $name\n", fs.read(entry))
+            val content = context.contentResolver.openInputStream(uri)?.bufferedReader()?.use { it.readText() }
+            assertEquals("content for $name\n", content)
         }
     }
 }

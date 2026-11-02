@@ -36,7 +36,7 @@ Codebase root: `app/src/main/java/com/edro08/structa/`
 | **Editor Core (Domain)** | `domain/editor/` | **Pure Kotlin only.** Text data structures, coordinate calculations, transactional history, decoupled commands, search, and syntax tokenization. **Strict invariant: Must NEVER import `android.*` or `androidx.*`.** |
 | **Filesystem (Domain)** | `domain/filesystem/`, `domain/workspace/` | Filesystem abstractions (`FileSystem`, `FileRef`, `FileMetadata`), workspace metadata, and session contracts. Completely decoupled from concrete storage providers. |
 | **Application** | `application/` | Orchestration use cases: reading/writing documents, formatters, and workspace coordination. Bridges UI requests to domain engines and storage providers. |
-| **Data / Storage** | `data/filesystem/` | `RoutedFileSystem` dispatching by provider to `SafFileSystem` (Storage Access Framework) or `DirectFileSystem` (POSIX direct access). Handles UTF-8 encoding. |
+| **Data / Storage** | `data/filesystem/direct/` | `DirectFileSystem` providing fast POSIX direct access to local project workspaces. Handles UTF-8 encoding. |
 | **Settings / State** | `data/settings/` | User preferences, workspace history, and session state persistence via `SharedPreferences`. |
 | **Presentation / Renderer** | `ui/editor/`, `ui/screen/` | Low-level `Canvas` rendering (`StructaEditorView`), IME input bridge (`EditorInputConnection`), Jetpack Compose screens, and ViewModels. |
 | **DI / App Lifecycle** | `app/` | Manual dependency injection via `AppContainer`, system intent routing, and navigation scaffold in `StructaApp`. |
@@ -88,15 +88,12 @@ The editor core operates on an immutable, reactive command pattern. It is partit
 
 ## 📁 Filesystem Architecture
 
-Storage access is abstracted behind `FileSystem` and dispatched via `RoutedFileSystem`:
+Storage access is abstracted behind `FileSystem` and implemented directly via `DirectFileSystem`:
 
-1. **Storage Access Framework (`SafFileSystem`):**
-   - Interacts with Android's `DocumentsContract` via `content://` URIs.
-   - Allows users to select files/folders using the system picker without elevated permissions.
-2. **Direct Shared Storage (`DirectFileSystem`):**
+1. **Direct Shared Storage (`DirectFileSystem`):**
    - Direct POSIX file path access (`/storage/emulated/0/...`).
-   - Requires `MANAGE_EXTERNAL_STORAGE` permission.
-   - Essential for fast workspace indexing, recursive directory traversal, and programming projects.
+   - Uses `MANAGE_EXTERNAL_STORAGE` permission.
+   - Essential for fast workspace indexing, recursive directory traversal, and programming projects without SAF overhead or system picker friction.
    - Enforces a security boundary blocking protected system paths (`Android/data` and `Android/obb`).
 
 ---
