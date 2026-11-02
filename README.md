@@ -4,7 +4,7 @@ Editor de texto técnico y visor de archivos para Android, enfocado en lectura, 
 
 ---
 
-### 📖 Lectura y edición
+### ✨ Características principales
 
 * **Modo lectura**: Apertura de archivos en solo lectura por defecto para evitar levantar el teclado accidentalmente. Permite seleccionar y copiar texto con normalidad.
 * **Alternancia rápida**: Cambio inmediato entre lectura y edición mediante botón en la barra o atajo (`Ctrl+E`).
