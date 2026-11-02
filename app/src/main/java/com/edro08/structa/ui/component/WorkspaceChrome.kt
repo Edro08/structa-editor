@@ -2,7 +2,6 @@ package com.edro08.structa.ui.component
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -12,12 +11,17 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.edro08.structa.ui.theme.ScreenStyle
+import com.edro08.structa.ui.theme.StructaIndigo
+import com.edro08.structa.ui.theme.StructaLavender
+import com.edro08.structa.ui.theme.StructaPurple
+import com.edro08.structa.ui.theme.StructaViolet
 
 @Composable
 fun WorkspacePanel(modifier: Modifier = Modifier, compact: Boolean = false,
@@ -32,13 +36,30 @@ fun WorkspacePanel(modifier: Modifier = Modifier, compact: Boolean = false,
 
 @Composable
 fun WorkspaceBadge(modifier: Modifier = Modifier, label: String? = null) {
-    val colors = MaterialTheme.colorScheme
-    Box(modifier.size(ScreenStyle.badgeSize).clip(RoundedCornerShape(13.dp))
-        .background(Brush.linearGradient(listOf(colors.surfaceContainerHigh, colors.surfaceContainerHighest))),
-        contentAlignment = Alignment.Center) {
-        if (label == null) Icon(Icons.Filled.Folder, contentDescription = null,
-            modifier = Modifier.size(27.dp), tint = colors.primary)
-        else Text(label, style = MaterialTheme.typography.labelMedium, color = colors.onSurface)
+    val shape = RoundedCornerShape(10.dp)
+    Box(
+        modifier = modifier
+            .size(40.dp)
+            .clip(shape)
+            .background(StructaPurple.copy(alpha = 0.15f))
+            .border(1.dp, StructaPurple.copy(alpha = 0.30f), shape),
+        contentAlignment = Alignment.Center
+    ) {
+        if (label == null) {
+            Icon(
+                imageVector = Icons.Filled.Folder,
+                contentDescription = null,
+                modifier = Modifier.size(22.dp),
+                tint = StructaLavender
+            )
+        } else {
+            Text(
+                text = label,
+                style = MaterialTheme.typography.labelMedium,
+                fontWeight = FontWeight.SemiBold,
+                color = StructaLavender
+            )
+        }
     }
 }
 
@@ -46,9 +67,9 @@ fun WorkspaceBadge(modifier: Modifier = Modifier, label: String? = null) {
 fun WorkspaceSectionTitle(icon: ImageVector, title: String, description: String? = null,
     action: (@Composable () -> Unit)? = null) {
     Row(verticalAlignment = Alignment.CenterVertically) {
-        Icon(icon, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(24.dp))
-        Spacer(Modifier.width(16.dp))
-        Text(title, style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
+        Icon(icon, contentDescription = null, tint = StructaPurple, modifier = Modifier.size(20.dp))
+        Spacer(Modifier.width(8.dp))
+        Text(title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
         action?.invoke()
     }
     if (description != null) Text(description, style = MaterialTheme.typography.bodySmall,
@@ -83,12 +104,37 @@ fun WorkspaceSelection(label: String, selected: Boolean, enabled: Boolean = true
 
 @Composable
 fun WorkspacePrimaryButton(text: String, icon: ImageVector, onClick: () -> Unit, modifier: Modifier = Modifier) {
-    Row(modifier.height(48.dp).clip(RoundedCornerShape(26.dp)).background(Brush.horizontalGradient(
-        listOf(MaterialTheme.colorScheme.primary, MaterialTheme.colorScheme.onPrimaryContainer)))
-        .clickable(role = Role.Button, onClick = onClick),
-        horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically) {
-        Icon(icon, contentDescription = null, tint = MaterialTheme.colorScheme.onPrimary, modifier = Modifier.size(22.dp))
-        Spacer(Modifier.width(10.dp))
-        Text(text, color = MaterialTheme.colorScheme.onPrimary, style = MaterialTheme.typography.titleSmall)
+    val shape = RoundedCornerShape(24.dp)
+    Surface(
+        onClick = onClick,
+        modifier = modifier.height(48.dp),
+        shape = shape,
+        color = Color.Transparent,
+        shadowElevation = 4.dp
+    ) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(
+                    Brush.horizontalGradient(
+                        colors = listOf(StructaViolet, StructaIndigo)
+                    )
+                ),
+            contentAlignment = Alignment.Center
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.Center
+            ) {
+                Icon(icon, contentDescription = null, tint = Color.White, modifier = Modifier.size(20.dp))
+                Spacer(Modifier.width(8.dp))
+                Text(
+                    text = text,
+                    color = Color.White,
+                    style = MaterialTheme.typography.labelLarge,
+                    fontWeight = FontWeight.SemiBold
+                )
+            }
+        }
     }
 }

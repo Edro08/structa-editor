@@ -6,20 +6,15 @@ import com.edro08.structa.domain.settings.SettingsRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 
-data class SettingsUiState(val provider: String = "SAF", val darkTheme: Boolean = true,
+data class SettingsUiState(val darkTheme: Boolean = true,
     val editorFont: EditorFont = EditorFont.MONOSPACE, val editorFontSize: Int = 14,
     val showAccessoryBar: Boolean = true)
 
 class SettingsViewModel(private val settings: SettingsRepository) : ViewModel() {
-    private val mutableState = MutableStateFlow(SettingsUiState(provider = settings.fileAccessProvider(), darkTheme = settings.darkTheme(),
+    private val mutableState = MutableStateFlow(SettingsUiState(darkTheme = settings.darkTheme(),
         editorFont = settings.editorFont(), editorFontSize = settings.editorFontSize(),
         showAccessoryBar = settings.showAccessoryBar()))
     val state = mutableState.asStateFlow()
-    fun selectProvider(provider: String) {
-        if (provider !in setOf("SAF", "DIRECT")) return
-        settings.setFileAccessProvider(provider)
-        mutableState.value = mutableState.value.copy(provider = provider)
-    }
     fun selectTheme(dark: Boolean) {
         settings.setDarkTheme(dark)
         mutableState.value = mutableState.value.copy(darkTheme = dark)

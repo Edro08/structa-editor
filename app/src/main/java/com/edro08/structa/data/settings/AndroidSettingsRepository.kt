@@ -16,18 +16,21 @@ class AndroidSettingsRepository(context: Context, name: String = "structa") : Se
         setLastFolderRef(FileRef.of(folder))
     }
 
-    override fun lastFolderRef(): FileRef? = lastFolder()?.let { id ->
-        FileRef(id, preferences.getString("last_folder_provider", null) ?: FileRef.of(id).fileSystem)
+    override fun lastFolderRef(): FileRef? {
+        val folder = lastFolder() ?: return null
+        val path = folder.value
+        val isAbsolute = path.startsWith("/") ||
+            (path.length >= 3 && path[0].isLetter() && path[1] == ':' && (path[2] == '\\' || path[2] == '/'))
+        if (!isAbsolute) {
+            preferences.edit().remove("last_folder_uri").remove("last_folder_provider").apply()
+            return null
+        }
+        return FileRef(folder, "direct")
     }
 
     override fun setLastFolderRef(folder: FileRef) {
         preferences.edit().putString("last_folder_uri", folder.id.value)
             .putString("last_folder_provider", folder.fileSystem).apply()
-    }
-
-    override fun fileAccessProvider(): String = preferences.getString("file_access_provider", "SAF") ?: "SAF"
-    override fun setFileAccessProvider(provider: String) {
-        preferences.edit().putString("file_access_provider", provider).apply()
     }
 
     override fun darkTheme(): Boolean = preferences.getBoolean("dark_theme", true)

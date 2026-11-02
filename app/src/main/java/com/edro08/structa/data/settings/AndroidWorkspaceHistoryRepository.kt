@@ -1,8 +1,6 @@
 package com.edro08.structa.data.settings
 
 import android.content.Context
-import android.net.Uri
-import android.provider.DocumentsContract
 import com.edro08.structa.domain.document.DocumentId
 import com.edro08.structa.domain.filesystem.FileRef
 import com.edro08.structa.domain.settings.SettingsRepository
@@ -78,13 +76,8 @@ class AndroidWorkspaceHistoryRepository(context: Context, settings: SettingsRepo
 
     companion object {
         fun describe(id: DocumentId): Pair<String, String?> {
-            if (FileRef.of(id).fileSystem == "direct") return java.io.File(id.value).name to id.value
-            val uri = Uri.parse(id.value)
-            val treeId = try { DocumentsContract.getTreeDocumentId(uri) } catch (_: Exception) { null }
-            val path = treeId?.substringAfter(':', "")?.takeIf { it.isNotBlank() }
-            val name = path?.substringAfterLast('/') ?: treeId?.substringAfterLast('/')
-                ?: uri.lastPathSegment?.substringAfterLast('/') ?: id.value
-            return name to path
+            val file = java.io.File(id.value)
+            return file.name.ifBlank { file.path } to id.value
         }
     }
 }

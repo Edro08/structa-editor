@@ -15,7 +15,7 @@ class DirectFileSystem : FileSystem {
     override val key = "direct"
 
     private fun file(id: DocumentId): File {
-        require(File(id.value).isAbsolute) { "Se requiere una ruta absoluta" }
+        if (!File(id.value).isAbsolute) throw IOException("La ruta de la carpeta no es válida")
         val resolved = File(id.value).canonicalFile
         val parts = resolved.path.split(File.separatorChar)
         if (parts.windowed(2).any { it[0].equals("Android", true) &&

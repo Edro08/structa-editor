@@ -11,6 +11,11 @@
     <string name="browser_new_folder">Nueva carpeta</string>
     <string name="browser_search_hint">Buscar por nombre</string>
     <string name="browser_no_folder">No hay una carpeta autorizada disponible.</string>
+    <string name="browser_no_workspace_title">Ningún workspace abierto</string>
+    <string name="browser_no_workspace_desc">Abre una carpeta de tu almacenamiento local para explorar sus archivos y empezar a editar.</string>
+    <string name="browser_folder_error_title">No se pudo acceder a la carpeta</string>
+    <string name="browser_folder_empty_title">Esta carpeta está vacía</string>
+    <string name="browser_folder_empty_desc">Puedes crear un archivo o subcarpeta con el botón \'+\' de arriba.</string>
     <string name="browser_empty">No hay archivos o carpetas que mostrar.</string>
     <string name="browser_retry">Reintentar</string>
     <string name="browser_actions_visible">Acciones visibles</string>

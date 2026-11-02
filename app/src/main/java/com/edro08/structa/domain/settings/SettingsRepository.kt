@@ -13,8 +13,6 @@ interface SettingsRepository {
     fun setLastFolder(folder: DocumentId)
     fun lastFolderRef(): FileRef? = lastFolder()?.let(FileRef::of)
     fun setLastFolderRef(folder: FileRef) = setLastFolder(folder.id)
-    fun fileAccessProvider(): String = "SAF"
-    fun setFileAccessProvider(provider: String) = Unit
     fun darkTheme(): Boolean = true
     fun setDarkTheme(dark: Boolean) = Unit
     fun editorFont(): EditorFont = EditorFont.MONOSPACE

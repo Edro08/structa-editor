@@ -2,20 +2,20 @@ package com.edro08.structa.ui.theme
 
 import androidx.compose.ui.graphics.Color
 
-// --- PALETA OSCURA (Tema Oscuro: Obsidian & Slate) ---
-val DarkBackground = Color(0xFF0E1015)               // Fondo profundo tipo editor
-val DarkSurface = Color(0xFF141720)                  // Superficie principal de tarjetas
-val DarkSurfaceRaised = Color(0xFF1B1E2B)            // Subcontenedores / campos elevados
-val DarkSurfaceContainerLowest = Color(0xFF090A0D)   // Fondo del editor y consolas
-val DarkSurfaceContainerLow = Color(0xFF12141B)      // Degradados de fondo
-val DarkSurfaceContainer = Color(0xFF181B24)         // Contenedores estándar
-val DarkSurfaceContainerHigh = Color(0xFF1F2330)     // Contenedores secundarios
-val DarkSurfaceContainerHighest = Color(0xFF282D3D)  // Píldoras y botones activos
-val DarkOutline = Color(0xFF383E54)                  // Bordes interactivos
-val DarkOutlineVariant = Color(0xFF252937)           // Bordes sutiles de tarjeta
-val DarkTextPrimary = Color(0xFFF3F4F6)              // Texto principal (alto contraste)
-val DarkTextSecondary = Color(0xFF9CA3AF)            // Texto secundario / atenuado
-val DarkTextMuted = Color(0xFF6B7280)                // Texto terciario / descripciones
+// --- PALETA OSCURA (Tema Oscuro: Pure OLED) ---
+val DarkBackground = Color(0xFF000000)               // Negro absoluto para paneles OLED
+val DarkSurface = Color(0xFF0E0F12)                  // Superficie sutil para top bars y diálogos
+val DarkSurfaceRaised = Color(0xFF18191E)            // Subcontenedores / campos elevados
+val DarkSurfaceContainerLowest = Color(0xFF000000)   // Fondo del editor (OLED black)
+val DarkSurfaceContainerLow = Color(0xFF0A0B0E)      // Degradados sutiles / gutter
+val DarkSurfaceContainer = Color(0xFF12141A)         // Contenedores estándar
+val DarkSurfaceContainerHigh = Color(0xFF1B1E26)     // Contenedores secundarios
+val DarkSurfaceContainerHighest = Color(0xFF242834)  // Píldoras y botones activos
+val DarkOutline = Color(0xFF262B36)                  // Bordes interactivos
+val DarkOutlineVariant = Color(0xFF181B22)           // Bordes sutiles hairline
+val DarkTextPrimary = Color(0xFFF8FAFC)              // Texto principal (máximo contraste)
+val DarkTextSecondary = Color(0xFF94A3B8)            // Texto secundario / atenuado
+val DarkTextMuted = Color(0xFF64748B)                // Texto terciario / descripciones
 
 // --- PALETA CLARA (Tema Claro: Snow & Slate) ---
 val LightBackground = Color(0xFFF8F9FB)              // Fondo blanco nieve
@@ -33,12 +33,15 @@ val LightTextSecondary = Color(0xFF4B5563)           // Texto secundario
 val LightTextMuted = Color(0xFF9CA3AF)               // Texto terciario
 
 // --- ACENTOS Y MARCA (Developer Palette) ---
-val StructaPrimary = Color(0xFFE2E8F0)               // Acento neutro blanco/pizarra claro
+val StructaPrimary = Color(0xFFF8FAFC)               // Acento neutro blanco alto contraste
 val StructaPrimaryDark = Color(0xFF1E293B)           // Acento neutro oscuro para tema claro
 val StructaSecondary = Color(0xFF94A3B8)             // Acento secundario pizarra
 val StructaCyan = Color(0xFF38BDF8)                  // Cyan para símbolos y acciones clave
-val StructaPurple = Color(0xFF7C3AED)                // Violeta vibrante para CTA primario (Agregar '+')
-val StructaFolder = Color(0xFFB084F4)                // Lila / violeta para iconos de carpeta
+val StructaViolet = Color(0xFF7C3AED)                // Violeta profundo (Tailwind violet-600)
+val StructaIndigo = Color(0xFF4F46E5)                // Índigo profundo (Tailwind indigo-600)
+val StructaPurple = StructaIndigo                    // Acento primario más oscuro y saturado
+val StructaFolder = Color(0xFF818CF8)                // Índigo suave para iconos de carpeta
+val StructaLavender = Color(0xFFA5B4FC)              // Lavanda para breadcrumbs y acentos secundarios
 
 // --- ESTADOS DE FEEDBACK ---
 val StatusGreen = Color(0xFF10B981)                  // Éxito / Permiso activo
@@ -73,7 +76,6 @@ val StructaBackground = DarkBackground
 val StructaSurface = DarkSurface
 val StructaSurfaceRaised = DarkSurfaceRaised
 val StructaOutline = DarkOutline
-val StructaLavender = Color(0xFFCAA8FF)
 val StructaMuted = DarkTextSecondary
 val StructaInk = Color(0xFF171028)
 val Purple80 = DarkTextPrimary
