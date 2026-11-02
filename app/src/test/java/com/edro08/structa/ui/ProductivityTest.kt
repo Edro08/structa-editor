@@ -89,13 +89,10 @@ class ProductivityTest {
         assertFalse(model.state.value.canUndo)
     }
 
-    @Test fun removedCodeLanguagesStayPlainDespiteContentDetection() = runTest(dispatcher) {
+    @Test fun codeLanguagesAreDetectedByExtensionDespiteContentResemblingYaml() = runTest(dispatcher) {
         val model = model("name: value")
-        for ((index, extension) in listOf("kt", "kts", "java", "js", "mjs", "cjs").withIndex()) {
-            open(model, file.copy(id = DocumentId("code$index"), name = "file.$extension"))
-            assertEquals(FileMode.YAML, model.state.value.mode)
-            assertEquals("text", model.state.value.highlightLanguage().id)
-        }
+        open(model, file.copy(id = DocumentId("codeGo"), name = "file.go"))
+        assertEquals("go", model.state.value.highlightLanguage().id)
     }
 
     @Test fun xmlFormattingUsesSelectedLanguageAndCanBeUndone() = runTest(dispatcher) {

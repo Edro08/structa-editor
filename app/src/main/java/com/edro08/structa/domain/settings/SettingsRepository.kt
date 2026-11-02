@@ -21,4 +21,6 @@ interface SettingsRepository {
     fun setEditorFont(font: EditorFont) = Unit
     fun editorFontSize(): Int = 14
     fun setEditorFontSize(size: Int) = Unit
+    fun showAccessoryBar(): Boolean = true
+    fun setShowAccessoryBar(show: Boolean) = Unit
 }

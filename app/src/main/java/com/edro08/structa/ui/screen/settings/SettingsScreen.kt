@@ -11,6 +11,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Code
 import androidx.compose.material.icons.filled.DarkMode
 import androidx.compose.material.icons.filled.FolderOpen
+import androidx.compose.material.icons.filled.Keyboard
 import androidx.compose.material.icons.filled.LightMode
 import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material.icons.filled.Security
@@ -46,6 +47,7 @@ fun SettingsScreen(
     onTheme: (Boolean) -> Unit,
     onFont: (EditorFont) -> Unit,
     onFontSize: (Int) -> Unit,
+    onToggleAccessoryBar: (Boolean) -> Unit = {},
     directAuthorized: Boolean = false,
     onManagePermission: () -> Unit = {}
 ) {
@@ -127,6 +129,28 @@ fun SettingsScreen(
                         FontSizeStepper(
                             fontSize = state.editorFontSize,
                             onFontSize = onFontSize
+                        )
+                    }
+                )
+
+                Spacer(Modifier.height(10.dp))
+
+                // Fila Barra de accesos rápidos / símbolos
+                PreferenceRow(
+                    icon = Icons.Filled.Keyboard,
+                    title = "Barra de símbolos",
+                    subtitle = "Fila de accesos rápidos sobre el teclado",
+                    onClick = { onToggleAccessoryBar(!state.showAccessoryBar) },
+                    trailing = {
+                        Switch(
+                            checked = state.showAccessoryBar,
+                            onCheckedChange = onToggleAccessoryBar,
+                            colors = SwitchDefaults.colors(
+                                checkedThumbColor = Color.White,
+                                checkedTrackColor = StructaPurple,
+                                uncheckedThumbColor = colors.onSurfaceVariant,
+                                uncheckedTrackColor = colors.surfaceVariant
+                            )
                         )
                     }
                 )

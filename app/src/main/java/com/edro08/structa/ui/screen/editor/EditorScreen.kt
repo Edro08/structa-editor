@@ -21,6 +21,8 @@ import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.ClearAll
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Code
+import androidx.compose.material.icons.filled.Edit
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.material.icons.filled.FindReplace
 import androidx.compose.material.icons.filled.FolderOpen
 import androidx.compose.material.icons.filled.FormatListNumbered
@@ -51,6 +53,13 @@ import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import com.edro08.structa.R
 import com.edro08.structa.domain.document.DocumentId
+import com.edro08.structa.domain.editor.command.*
+import com.edro08.structa.domain.editor.cursor.TextOffset
+import com.edro08.structa.domain.editor.cursor.TextRange
+import com.edro08.structa.domain.editor.navigation.DocumentSymbol
+import com.edro08.structa.domain.editor.navigation.DocumentSymbolExtractor
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import com.edro08.structa.domain.editor.syntax.Language
 import com.edro08.structa.domain.editor.syntax.LanguageRegistry
 import com.edro08.structa.ui.editor.component.StructaEditor
@@ -65,30 +74,36 @@ import com.edro08.structa.ui.component.WorkspaceSelection
 import com.edro08.structa.ui.theme.ScreenStyle
 
 @Composable
-private fun languageName(language: Language): String = stringResource(when (language.id) {
-    "go" -> R.string.editor_language_go
-    "json" -> R.string.editor_language_json
-    "yaml" -> R.string.editor_language_yaml
-    "markdown" -> R.string.editor_language_markdown
-    "xml" -> R.string.editor_language_xml
-    else -> R.string.editor_language_plain
-})
+private fun languageName(language: Language): String = when (language.id) {
+    "go" -> stringResource(R.string.editor_language_go)
+    "json" -> stringResource(R.string.editor_language_json)
+    "yaml" -> stringResource(R.string.editor_language_yaml)
+    "markdown" -> stringResource(R.string.editor_language_markdown)
+    "xml" -> stringResource(R.string.editor_language_xml)
+    "text" -> stringResource(R.string.editor_language_plain)
+    else -> language.title
+}
 
 @Composable
-private fun actionName(action: EditorAction): String = stringResource(when (action) {
-    EditorAction.SAVE -> R.string.editor_save
-    EditorAction.FIND -> R.string.editor_find
-    EditorAction.REPLACE -> R.string.editor_replace
-    EditorAction.GO_TO_LINE -> R.string.editor_go_to_line
-    EditorAction.QUICK_OPEN -> R.string.editor_open
-    EditorAction.COMMAND_PALETTE -> R.string.editor_edit_menu
-    EditorAction.FIND_NEXT -> R.string.editor_next
-    EditorAction.FIND_PREVIOUS -> R.string.editor_previous
-    EditorAction.UNDO -> R.string.editor_undo
-    EditorAction.REDO -> R.string.editor_redo
-    EditorAction.FORMAT -> R.string.editor_format_document
-    EditorAction.CLOSE -> R.string.editor_close
-})
+private fun actionName(action: EditorAction): String = when (action) {
+    EditorAction.SAVE -> stringResource(R.string.editor_save)
+    EditorAction.FIND -> stringResource(R.string.editor_find)
+    EditorAction.REPLACE -> stringResource(R.string.editor_replace)
+    EditorAction.GO_TO_LINE -> stringResource(R.string.editor_go_to_line)
+    EditorAction.QUICK_OPEN -> stringResource(R.string.editor_open)
+    EditorAction.COMMAND_PALETTE -> stringResource(R.string.editor_edit_menu)
+    EditorAction.FIND_NEXT -> stringResource(R.string.editor_next)
+    EditorAction.FIND_PREVIOUS -> stringResource(R.string.editor_previous)
+    EditorAction.UNDO -> stringResource(R.string.editor_undo)
+    EditorAction.REDO -> stringResource(R.string.editor_redo)
+    EditorAction.FORMAT -> stringResource(R.string.editor_format_document)
+    EditorAction.CLOSE -> stringResource(R.string.editor_close)
+    EditorAction.TOGGLE_EDITABLE -> stringResource(R.string.editor_toggle_editable)
+    EditorAction.DUPLICATE_LINE -> action.title
+    EditorAction.DELETE_LINE -> action.title
+    EditorAction.DOCUMENT_OUTLINE -> action.title
+    EditorAction.GLOBAL_SEARCH -> action.title
+}
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -101,28 +116,39 @@ fun EditorScreen(state: EditorUiState, onBack: () -> Unit, onExplore: () -> Unit
     onSearchOptions: (SearchOptions) -> Unit = {}, onReplacement: (String) -> Unit = {},
     onFindNext: (Boolean) -> Unit = {}, onReplace: (Boolean) -> Unit = {}, onQuickOpen: () -> Unit = {},
     editorFont: com.edro08.structa.domain.settings.EditorFont = com.edro08.structa.domain.settings.EditorFont.MONOSPACE,
-    editorFontSize: Int = 14, onCloseAll: () -> Unit = {}, onCloseOthers: () -> Unit = {},
-    onGoToStart: () -> Unit = {}, onGoToEnd: () -> Unit = {}, onSaveAll: () -> Unit = {}) {
+    editorFontSize: Int = 14, showAccessoryBar: Boolean = true,
+    onCloseAll: () -> Unit = {}, onCloseOthers: () -> Unit = {},
+    onGoToStart: () -> Unit = {}, onGoToEnd: () -> Unit = {}, onSaveAll: () -> Unit = {},
+    onGlobalSearch: () -> Unit = {},
+    onToggleEditable: () -> Unit = {}) {
     var showSearch by rememberSaveable { mutableStateOf(false) }
     var showReplace by rememberSaveable { mutableStateOf(false) }
     var showFileMenu by remember { mutableStateOf(false) }
     var showEditMenu by remember { mutableStateOf(false) }
     var showFormatMenu by remember { mutableStateOf(false) }
     var showGoToLine by rememberSaveable { mutableStateOf(false) }
+    var showOutline by rememberSaveable { mutableStateOf(false) }
     var requestedLine by rememberSaveable { mutableStateOf("") }
     val entry = state.entry
     val searchFocus = remember { FocusRequester() }
     val lineFocus = remember { FocusRequester() }
+    val keyboardController = LocalSoftwareKeyboardController.current
     LaunchedEffect(showSearch, showReplace) { if (showSearch && entry != null && !state.loading) searchFocus.requestFocus() }
+    LaunchedEffect(state.isEditable, entry?.id) {
+        if (!state.isEditable) {
+            keyboardController?.hide()
+        }
+    }
     fun enabled(action: EditorAction): Boolean = when (action) {
-        EditorAction.QUICK_OPEN, EditorAction.COMMAND_PALETTE -> true
-        EditorAction.SAVE -> entry != null && !state.loading && !state.saving && state.pendingSave == null
-        EditorAction.REPLACE -> entry != null && !state.loading
-        EditorAction.UNDO -> !state.loading && state.canUndo
-        EditorAction.REDO -> !state.loading && state.canRedo
-        EditorAction.FORMAT -> entry != null && !state.loading && !state.formatting &&
+        EditorAction.QUICK_OPEN, EditorAction.COMMAND_PALETTE, EditorAction.GLOBAL_SEARCH, EditorAction.TOGGLE_EDITABLE -> true
+        EditorAction.SAVE -> entry != null && !state.loading && !state.saving && state.pendingSave == null && state.isEditable
+        EditorAction.REPLACE -> entry != null && !state.loading && state.isEditable
+        EditorAction.UNDO -> !state.loading && state.canUndo && state.isEditable
+        EditorAction.REDO -> !state.loading && state.canRedo && state.isEditable
+        EditorAction.FORMAT -> entry != null && !state.loading && !state.formatting && state.isEditable &&
             state.highlightLanguage().id in setOf("json", "xml", "yaml")
         EditorAction.FIND_NEXT, EditorAction.FIND_PREVIOUS -> !state.loading && !state.searching && !state.replacing && state.occurrences > 0
+        EditorAction.DUPLICATE_LINE, EditorAction.DELETE_LINE -> entry != null && !state.loading && state.isEditable
         else -> entry != null && !state.loading
     }
     fun dispatch(action: EditorAction) {
@@ -141,6 +167,15 @@ fun EditorScreen(state: EditorUiState, onBack: () -> Unit, onExplore: () -> Unit
             EditorAction.REDO -> onRedo()
             EditorAction.FORMAT -> onFormat()
             EditorAction.CLOSE -> entry?.let { onCloseDocument(it.id) }
+            EditorAction.TOGGLE_EDITABLE -> {
+                if (state.isEditable) keyboardController?.hide()
+                state.inputSession?.finishComposingText()
+                onToggleEditable()
+            }
+            EditorAction.DUPLICATE_LINE -> state.inputSession?.execute(DuplicateLineCommand(down = true))
+            EditorAction.DELETE_LINE -> state.inputSession?.execute(DeleteLineCommand)
+            EditorAction.DOCUMENT_OUTLINE -> showOutline = true
+            EditorAction.GLOBAL_SEARCH -> onGlobalSearch()
         }
     }
     Scaffold(modifier = Modifier.onPreviewKeyEvent { event ->
@@ -152,24 +187,38 @@ fun EditorScreen(state: EditorUiState, onBack: () -> Unit, onExplore: () -> Unit
                   Text(if (state.tabs.size == 1 && state.dirty) stringResource(R.string.editor_dirty_title, title) else title,
                       maxLines = 1, overflow = TextOverflow.Ellipsis)
                 if (entry != null) {
-                       Text(stringResource(R.string.editor_document_info, languageName(state.highlightLanguage()), formatBytes(entry.sizeBytes)), maxLines = 1,
+                    val modeLabel = if (state.isEditable) stringResource(R.string.editor_mode_edit) else stringResource(R.string.editor_mode_view)
+                    Text(stringResource(R.string.editor_document_info, languageName(state.highlightLanguage()), formatBytes(entry.sizeBytes)) + " · " + modeLabel, maxLines = 1,
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             }
         }, onBack = onBack,
             actions = {
-                 Box {
-                     OutlinedButton(onClick = { showEditMenu = false; showFileMenu = true },
-                         shape = RoundedCornerShape(12.dp), contentPadding = PaddingValues(horizontal = 10.dp),
-                         colors = ButtonDefaults.outlinedButtonColors(
-                             containerColor = if (showFileMenu) MaterialTheme.colorScheme.primaryContainer else Color.Transparent)) {
-                         Icon(Icons.AutoMirrored.Filled.InsertDriveFile, contentDescription = null, modifier = Modifier.size(18.dp))
-                         Spacer(Modifier.width(7.dp))
-                         Text(stringResource(R.string.editor_file_menu))
-                         Icon(Icons.Filled.KeyboardArrowDown, contentDescription = null, modifier = Modifier.size(16.dp))
-                     }
-                     DropdownMenu(expanded = showFileMenu, onDismissRequest = { showFileMenu = false },
+                if (entry != null) {
+                    IconButton(
+                        onClick = {
+                            if (state.isEditable) keyboardController?.hide()
+                            state.inputSession?.finishComposingText()
+                            onToggleEditable()
+                        }
+                    ) {
+                        Icon(
+                            imageVector = if (state.isEditable) Icons.Filled.Check else Icons.Filled.Edit,
+                            contentDescription = if (state.isEditable) stringResource(R.string.editor_action_view) else stringResource(R.string.editor_action_edit),
+                            tint = if (state.isEditable) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+                Box {
+                    IconButton(onClick = { showEditMenu = false; showFileMenu = true }) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.InsertDriveFile,
+                            contentDescription = stringResource(R.string.editor_file_menu),
+                            tint = if (showFileMenu) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                    DropdownMenu(expanded = showFileMenu, onDismissRequest = { showFileMenu = false },
                          modifier = Modifier.widthIn(min = 220.dp).border(1.dp,
                              MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(18.dp)),
                          shape = RoundedCornerShape(18.dp),
@@ -218,6 +267,13 @@ fun EditorScreen(state: EditorUiState, onBack: () -> Unit, onExplore: () -> Unit
                                       showEditMenu = false; dispatch(action)
                                   }
                               }
+                          EditorMenuOption(actionName(EditorAction.GLOBAL_SEARCH), Icons.Filled.Search, "Ctrl+Shift+F", enabled(EditorAction.GLOBAL_SEARCH)) {
+                              showEditMenu = false; dispatch(EditorAction.GLOBAL_SEARCH)
+                          }
+                          EditorMenuOption(actionName(EditorAction.DOCUMENT_OUTLINE), Icons.Filled.FormatListNumbered, "Ctrl+Shift+O", enabled(EditorAction.DOCUMENT_OUTLINE)) {
+                              showEditMenu = false; dispatch(EditorAction.DOCUMENT_OUTLINE)
+                          }
+
                           EditorMenuOption(stringResource(R.string.editor_go_to_start), Icons.Filled.ArrowUpward,
                               enabled = enabled(EditorAction.GO_TO_LINE)) {
                               showEditMenu = false; state.inputSession?.finishComposingText(); onGoToStart()
@@ -341,14 +397,86 @@ fun EditorScreen(state: EditorUiState, onBack: () -> Unit, onExplore: () -> Unit
                   }
                   state.inputSession?.let { input ->
                       StructaEditor(input.engine, Modifier.weight(1f).fillMaxWidth(),
-                           contentVersion = state.contentVersion, cursorVisible = true,
-                            editable = true, inputSession = input, viewState = state.viewState,
+                           contentVersion = state.contentVersion, cursorVisible = state.isEditable,
+                            editable = state.isEditable, inputSession = input, viewState = state.viewState,
                              fileName = entry.name, language = state.highlightLanguage(), searchMatches = state.searchResult.matches,
                              selectedMatch = state.selectedMatch, font = editorFont, fontSize = editorFontSize,
                              onEditorAction = ::dispatch)
+
+                      if (showAccessoryBar && state.isEditable) {
+                          val accessorySymbols = remember {
+                              listOf("{", "}", "(", ")", "[", "]", ";", "=", ":", "\"", "'", "/", "\\", "|", "&", "!", "<", ">", "$", "_", "Tab")
+                          }
+                          LazyRow(
+                              modifier = Modifier
+                                  .fillMaxWidth()
+                                  .background(MaterialTheme.colorScheme.surfaceContainer)
+                                  .padding(horizontal = 4.dp, vertical = 2.dp),
+                              horizontalArrangement = Arrangement.spacedBy(4.dp)
+                          ) {
+                              items(accessorySymbols.size) { idx ->
+                                  val sym = accessorySymbols[idx]
+                                  Surface(
+                                      onClick = {
+                                          if (sym == "Tab") {
+                                              input.execute(SmartInsertTextCommand("    "))
+                                          } else {
+                                              input.execute(SmartInsertTextCommand(sym))
+                                          }
+                                      },
+                                      shape = RoundedCornerShape(6.dp),
+                                      color = MaterialTheme.colorScheme.surfaceContainerHighest,
+                                      modifier = Modifier.height(30.dp)
+                                  ) {
+                                      Box(
+                                          modifier = Modifier.padding(horizontal = 10.dp),
+                                          contentAlignment = Alignment.Center
+                                      ) {
+                                          Text(
+                                              text = sym,
+                                              style = MaterialTheme.typography.bodyMedium,
+                                              color = MaterialTheme.colorScheme.onSurface
+                                          )
+                                      }
+                                  }
+                              }
+                          }
+                      }
                   }
             }
         }
+    }
+    var outlineSymbols by remember { mutableStateOf<List<DocumentSymbol>>(emptyList()) }
+    var outlineLoading by remember { mutableStateOf(false) }
+
+    LaunchedEffect(showOutline) {
+        if (showOutline) {
+            outlineLoading = true
+            val session = state.inputSession
+            val langId = state.highlightLanguage().id
+            val symbols = withContext(Dispatchers.Default) {
+                val text = session?.buffer?.let { buf ->
+                    val len = buf.length.coerceAtMost(DocumentSymbolExtractor.MAX_ANALYSIS_CHARS)
+                    buf.getText(0, len)
+                } ?: ""
+                DocumentSymbolExtractor.extract(text, langId)
+            }
+            outlineSymbols = symbols
+            outlineLoading = false
+        }
+    }
+
+    if (showOutline) {
+        DocumentOutlinePicker(
+            symbols = outlineSymbols,
+            loading = outlineLoading,
+            onSelect = { sym ->
+                state.inputSession?.execute(MoveCursorCommand(TextOffset(sym.offset)))
+                onLine(sym.line + 1)
+                showOutline = false
+            },
+            onDismiss = { showOutline = false }
+        )
     }
     if (showGoToLine) {
           AlertDialog(onDismissRequest = { showGoToLine = false },

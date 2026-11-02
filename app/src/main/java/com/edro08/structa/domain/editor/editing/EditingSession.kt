@@ -18,7 +18,7 @@ import com.edro08.structa.domain.editor.history.EditState
  * has its active end at the cursor; empty selections are represented as null.
  */
 class EditingSession internal constructor(
-    private val buffer: TextBuffer,
+    internal val buffer: TextBuffer,
     private val history: EditHistory
 ) {
     constructor(buffer: TextBuffer) : this(buffer, EditHistory(buffer))

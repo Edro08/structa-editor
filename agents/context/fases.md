@@ -1,6 +1,6 @@
 # Fases de desarrollo de Structa
 
-Las fases **1–11** representan el desarrollo del motor base y la arquitectura del editor (completadas). Las fases **12–18** definen la hoja de ruta técnica requerida para evolucionar Structa desde un editor de texto técnico hacia un **editor de código móvil completo y funcional**.
+Las fases **1–11** representan el desarrollo del motor base y la arquitectura del editor (completadas). Las fases subsiguientes definen la hoja de ruta técnica de Structa como un **editor de texto técnico y archivos flexibles con visualización de código en Go**.
 
 ---
 
@@ -63,12 +63,12 @@ Las fases **1–11** representan el desarrollo del motor base y la arquitectura 
 
 ---
 
-## 🚀 Hoja de ruta: Fases para ser un verdadero Editor de Código
+## 🚀 Hoja de ruta: Editor de texto técnico y archivos flexibles
 
-Para que Structa pase de ser un visor/editor de texto a un **editor de código completo**, se definen las siguientes fases de desarrollo:
+Structa evoluciona hacia un **editor de texto técnico, fluido y enfocado en archivos flexibles** (Markdown, JSON, YAML, XML, Plain Text) con capacidad nativa para visualizar código en **Go**.
 
-### Fase 12 — Ergonomía de edición de código (Smart Editing)
-*Objetivo: Hacer que escribir código sea natural, rápido y no frustrante en móvil.*
+### Fase 12 — Ergonomía de edición (Smart Editing Core)
+*Objetivo: Hacer que la escritura técnica sea ágil, natural y fluida en móvil.*
 1. **Pares de delimitadores automáticos (Auto-closing pairs):**
    - Cierre automático de `()`, `[]`, `{}`, `""`, `''` y triple comilla/backticks.
    - Si se escribe el carácter de cierre estando frente a él, saltar hacia adelante en lugar de duplicarlo.
@@ -77,82 +77,48 @@ Para que Structa pase de ser un visor/editor de texto a un **editor de código c
 2. **Indentación inteligente (Smart Auto-indent):**
    - Al presionar Enter tras abrir una llave `{` o dos puntos `:`, aumentar un nivel de indentación en la línea siguiente y posicionar el cierre con la sangría correcta.
    - Desindentación automática al escribir la llave de cierre `}`.
-   - Configuración por proyecto/lenguaje: Indentación con espacios (2 o 4) o Tabs.
-3. **Manipulación de líneas (Atajos de desarrollador):**
-   - Comentar / descomentar línea o selección (`Ctrl+/` o menú de acción rápida).
-   - Duplicar línea o selección (`Shift+Alt+Down` / `Shift+Alt+Up`).
+3. **Manipulación de líneas (Atajos rápidos):**
+   - Comentar / descomentar línea o selección (`Ctrl+/`).
+   - Duplicar línea o selección (`Shift+Alt+Down` / `Shift+Alt+Up` o `Ctrl+D`).
    - Mover línea arriba / abajo (`Alt+Up` / `Alt+Down`).
-   - Eliminar línea completa (`Ctrl+Shift+K` o equivalente táctil).
-4. **Plegado de código (Code Folding):**
-   - Detección de bloques plegables basados en sangría o delimitadores `{ ... }`.
-   - Flechas/indicadores de plegado en el gutter junto al número de línea.
-   - Ocultamiento de líneas plegadas en el renderizado del viewport.
+   - Eliminar línea completa (`Ctrl+Shift+K`).
 
-### Fase 13 — Motor de lenguajes y sintaxis moderna
-*Objetivo: Soporte robusto y coloreado de los principales lenguajes de programación.*
-1. **Ampliación prioritaria de lenguajes:**
-   - Incorporar soporte para **Kotlin, Java, Python, JavaScript, TypeScript, C/C++, Rust, HTML/CSS y Shell Script**.
-2. **Integración de gramáticas estándar:**
-   - Evaluar e integrar un motor de gramáticas probado (como TextMate grammars compiladas o Tree-sitter embebido en Android) para no mantener tokenizadores manuales frágiles por lenguaje.
-3. **Detección avanzada de lenguaje:**
-   - Reconocimiento por extensión, nombre especial (`Dockerfile`, `Makefile`, etc.) y shebang (`#!/usr/bin/env python3`).
-   - Selector manual de sintaxis con persistencia por archivo.
+### Fase 13 — Archivos flexibles y visualización de código Go
+*Objetivo: Soporte limpio para formatos estructurados y visualización de código en Go.*
+1. **Formatos flexibles de texto y datos:**
+   - **Markdown (`.md`)**: títulos, citas, listas, bloques de código, tablas y enlaces.
+   - **JSON (`.json`, `.jsonl`)**: formateo, validación visual y claves/valores destacados.
+   - **YAML (`.yaml`, `.yml`)**: formateo y jerarquía de datos.
+   - **XML (`.xml`)**: formateo y etiquetas.
+   - **Plain Text (`.txt`)**: texto sin formato de máximo rendimiento.
+2. **Visualización de código en Go (`.go`):**
+   - Resaltado léxico de palabras clave, operadores, funciones y strings crudos de Go.
 
-### Fase 14 — Navegación de código y búsqueda global
-*Objetivo: Poder explorar y moverse por una base de código completa.*
+### Fase 14 — Navegación de contenido y búsqueda global
+*Objetivo: Poder explorar y moverse por un workspace de notas y archivos con agilidad.*
 1. **Búsqueda y reemplazo en todo el Workspace (Global Search):**
    - Búsqueda de texto o regex en todos los archivos del proyecto en segundo plano.
    - Panel de resultados agrupados por archivo con vista previa de la línea.
    - Filtros de inclusión/exclusión (ignorar automáticamente `.git/`, `build/`, `node_modules/`, etc.).
-   - Reemplazo global en lote con confirmación y transacción segura.
-2. **Esquema de símbolos del documento (Document Outline):**
-   - Extracción y visualización rápida de clases, funciones, métodos y constantes del archivo actual.
-   - Diálogo rápido (`Ctrl+Shift+O` o icono en barra superior) para saltar a un símbolo.
-3. **Marcas en la barra de desplazamiento (Scrollbar Markers):**
-   - Vista general en la barra de scroll con indicadores de color: coincidencias de búsqueda, errores/advertencias y cambios de edición.
+   - Reemplazo global en lote con confirmación.
+2. **Esquema de secciones y símbolos (Document Outline):**
+   - Títulos de Markdown (`# H1`, `## H2`, `### H3`) y funciones/tipos de Go (`func`, `type`).
+   - Salto instantáneo a la sección deseada.
 
-### Fase 15 — Asistencia de código y autocompletado (LSP)
-*Objetivo: Convertir a Structa en una herramienta productiva con inteligencia de código.*
-1. **UI de autocompletado adaptada a móvil:**
-   - Menú emergente de sugerencias anclado al cursor que conviva fluidamente con el teclado virtual (IME).
-   - Navegación táctil y por teclado de sugerencias.
-2. **Completado básico por buffer:**
-   - Extracción de palabras e identificadores de todos los documentos abiertos en el workspace (Word-based completion).
-3. **Arquitectura de cliente LSP (Language Server Protocol):**
-   - Capa de comunicación cliente LSP (vía socket o procesos locales en Android/Termux).
-   - **Diagnósticos en tiempo real:** Subrayados ondulados (*squiggles*) en el Canvas para errores (rojo) y advertencias (amarillo), con tooltip táctil de explicación.
-   - **Hover / Inspección:** Mostrar documentación o firma de tipo al mantener presionado un identificador.
-   - **Navegación:** "Ir a definición" e "Ir a referencias".
+### Fase 15 — Asistencia de edición y productividad ligera
+*Objetivo: Escritura rápida sin interferir con el teclado del sistema.*
+1. **Atajos táctiles opcionales:**
+   - Barra de símbolos de acceso rápido sobre el teclado, configurable desde Ajustes.
+2. **Navegación por secciones y búsqueda integrada:**
+   - Salto rápido de archivos (`Quick Open` `Ctrl+P`).
 
-### Fase 16 — Control de versiones (Git integrado)
-*Objetivo: Controlar el ciclo de vida del código dentro de la aplicación.*
-1. **Indicadores de estado en el Gutter:**
-   - Barras de color junto al número de línea para marcar líneas añadidas (verde), modificadas (azul) o eliminadas (flecha roja).
-2. **Panel de control de fuentes (Source Control):**
-   - Visualización de archivos modificados, añadidos, borrados y en conflicto.
-   - Integración con backend Git local (ej. libgit2 / JGit para Android).
-3. **Visor de diferencias (Diff Viewer):**
-   - Visualización lado a lado o unificada de cambios antes de confirmar.
-4. **Operaciones básicas de Git:**
-   - Stage / Unstage de archivos o bloques.
-   - Commit con mensaje, creación y cambio de ramas (*checkout*), Pull y Push.
-
-### Fase 17 — UX Móvil para desarrolladores y robustez
-*Objetivo: Facilitar la programación desde un teléfono o tablet.*
-1. **Barra de símbolos de programación (Accessory Bar móvil):**
-   - Fila de accesos rápidos sobre el teclado virtual con caracteres de programación frecuentes: `{ } [ ] ( ) ; = : " ' / \ | & ! < > $ _ Tab`.
-2. **Recuperación automática de borradores (Draft Crash Recovery):**
+### Fase 17 — Robustez móvil y formatos
+*Objetivo: Seguridad de datos en el teléfono.*
+1. **Recuperación automática de borradores (Draft Crash Recovery):**
    - Sistema de guardado en segundo plano de buffers modificados (autosave en almacenamiento temporal).
    - Restauración automática del texto no guardado en caso de que Android termine el proceso por falta de memoria o la app se cierre inesperadamente.
-3. **Gestión de codificaciones (Encoding support):**
+2. **Gestión de codificaciones (Encoding support):**
    - Lectura y escritura en codificaciones más allá de UTF-8 (UTF-16, ISO-8859-1, Windows-1252) con autodetección y cambio manual.
-
-### Fase 18 — Terminal integrada y ejecución (Opcional / Avanzado)
-*Objetivo: Probar y ejecutar el código sin salir de Structa.*
-1. **Terminal integrada:**
-   - Emulador de terminal móvil embebido con soporte para shell local de Android o entorno Termux.
-2. **Ejecución y runners:**
-   - Disparo de scripts y comandos de construcción (`Run File`, `Build`, `Test`).
 
 ---
 
@@ -167,7 +133,8 @@ Para que Structa pase de ser un visor/editor de texto a un **editor de código c
 | Fase 9 (SAF & Explorador) | 112 | 22 |
 | Fase 10 (Productividad) | 129 | 25 |
 | Fase 11 (Tokenizador & Decoraciones) | 137 | 28 |
-| Estado actual del núcleo | 167 | 54 |
+| Fase 12-15 (Smart Edit, Multi-lenguaje, Búsqueda, Completion) | 189 | 54 |
+| Estado actual del núcleo | 189 | 54 |
 
 Comandos de verificación en Windows PowerShell:
 ```powershell

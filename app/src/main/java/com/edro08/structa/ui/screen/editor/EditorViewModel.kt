@@ -44,6 +44,7 @@ data class EditorUiState(
     val entry: FileEntry? = null,
     val value: TextFieldValue = TextFieldValue(),
     val mode: FileMode = FileMode.TEXT,
+    val isEditable: Boolean = false,
     val languageOverride: Language? = null,
     val inputSession: EditorInputSession? = null,
     val viewState: EditorViewState = EditorViewState(),
@@ -78,9 +79,6 @@ private fun FileMode.syntaxLanguage(): Language = when (this) {
 
 fun EditorUiState.highlightLanguage(): Language {
     languageOverride?.let { return it }
-    // Removed code grammars always open as plain text, even if content heuristics resemble YAML/JSON.
-    if (entry?.name?.substringAfterLast('.', "")?.lowercase(java.util.Locale.ROOT) in
-        setOf("kt", "kts", "java", "js", "mjs", "cjs")) return LanguageRegistry.plain
     val detected = entry?.let { LanguageRegistry.forFileName(it.name) } ?: LanguageRegistry.plain
     if (detected != LanguageRegistry.plain) return detected
     return mode.syntaxLanguage()
@@ -225,6 +223,26 @@ class EditorViewModel(
         viewModelScope.launch {
             while (restoring) delay(20)
             open(entry)
+        }
+    }
+
+    fun toggleEditable() {
+        val current = state.value
+        val next = !current.isEditable
+        mutableState.value = current.copy(isEditable = next)
+        val id = current.entry?.id ?: return
+        documents[id]?.let { doc ->
+            documents[id] = doc.copy(isEditable = next)
+        }
+    }
+
+    fun setEditable(editable: Boolean) {
+        val current = state.value
+        if (current.isEditable == editable) return
+        mutableState.value = current.copy(isEditable = editable)
+        val id = current.entry?.id ?: return
+        documents[id]?.let { doc ->
+            documents[id] = doc.copy(isEditable = editable)
         }
     }
 

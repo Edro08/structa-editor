@@ -7,6 +7,9 @@ import com.edro08.structa.application.document.SaveDocumentCopy
 import com.edro08.structa.application.editor.ContentFormatDetector
 import com.edro08.structa.application.editor.FormatJsonDocument
 import com.edro08.structa.domain.document.DocumentId
+import com.edro08.structa.domain.editor.cursor.TextOffset
+import com.edro08.structa.domain.editor.command.SetSelectionCommand
+import com.edro08.structa.domain.editor.command.ClearSelectionCommand
 import com.edro08.structa.domain.filesystem.*
 import com.edro08.structa.ui.screen.editor.EditorViewModel
 import kotlinx.coroutines.*
@@ -41,6 +44,39 @@ class EditorDocumentsTest {
 
     @Before fun setUp() { Dispatchers.setMain(dispatcher) }
     @After fun tearDown() { Dispatchers.resetMain() }
+
+    @Test fun documentOpensInViewModeByDefaultAndCanToggleEdit() = runTest(dispatcher) {
+        val model = model()
+        open(model, a)
+        assertFalse(model.state.value.isEditable)
+
+        model.toggleEditable()
+        assertTrue(model.state.value.isEditable)
+
+        model.toggleEditable()
+        assertFalse(model.state.value.isEditable)
+    }
+
+    @Test fun viewModeSupportsSelectionAndTextCopy() = runTest(dispatcher) {
+        val model = model()
+        disk[a.id] = "Hello World From Structa"
+        open(model, a)
+        assertFalse(model.state.value.isEditable)
+
+        val session = model.state.value.inputSession
+        checkNotNull(session)
+        // Select "World" (offsets 6 to 11)
+        session.execute(SetSelectionCommand(TextOffset(6), TextOffset(11)), false)
+        assertEquals("World", session.selectedText())
+
+        // Select all
+        session.selectAll()
+        assertEquals("Hello World From Structa", session.selectedText())
+
+        // Clear selection
+        session.execute(ClearSelectionCommand, false)
+        assertNull(session.engine.selection)
+    }
 
     @Test fun largeDocumentSupportsEditingReplacementHistoryAndBothSavePaths() = runTest(dispatcher) {
         val original = "unique-marker\n" + "large document line with some content\n".repeat(60_000)

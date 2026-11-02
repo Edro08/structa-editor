@@ -18,10 +18,10 @@ class SyntaxTest {
         listOf("go", "json", "yaml", "md", "xml").forEach {
             assertNotEquals("text", LanguageRegistry.forFileName("file.$it").id)
         }
-        assertEquals(go, LanguageRegistry.forFileName("MAIN.GO"))
-        listOf("kt", "kts", "java", "js", "mjs", "cjs").forEach {
-            assertEquals(LanguageRegistry.plain, LanguageRegistry.forFileName("file.$it"))
+        listOf("kt", "py", "js", "cpp", "rs", "sh").forEach {
+            assertEquals("text", LanguageRegistry.forFileName("file.$it").id)
         }
+        assertEquals(go, LanguageRegistry.forFileName("MAIN.GO"))
         assertEquals(LanguageRegistry.plain, LanguageRegistry.forFileName("unknown"))
         assertEquals(LanguageRegistry.plain, LanguageRegistry.forFileName("notes.kt.txt"))
     }

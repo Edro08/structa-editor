@@ -68,7 +68,7 @@ fun StructaEditor(
         heading = if (dark) 0xFF82AAFF.toInt() else 0xFF2655A0.toInt()
     )
     AndroidView(
-        factory = { context -> StructaEditorView(context) },
+        factory = { context -> StructaEditorView(context).apply { this.editable = editable } },
         modifier = modifier,
         update = { view ->
             view.style = style
