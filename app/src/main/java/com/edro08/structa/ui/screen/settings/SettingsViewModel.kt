@@ -7,11 +7,13 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 
 data class SettingsUiState(val provider: String = "SAF", val darkTheme: Boolean = true,
-    val editorFont: EditorFont = EditorFont.MONOSPACE, val editorFontSize: Int = 14)
+    val editorFont: EditorFont = EditorFont.MONOSPACE, val editorFontSize: Int = 14,
+    val showAccessoryBar: Boolean = true)
 
 class SettingsViewModel(private val settings: SettingsRepository) : ViewModel() {
     private val mutableState = MutableStateFlow(SettingsUiState(provider = settings.fileAccessProvider(), darkTheme = settings.darkTheme(),
-        editorFont = settings.editorFont(), editorFontSize = settings.editorFontSize()))
+        editorFont = settings.editorFont(), editorFontSize = settings.editorFontSize(),
+        showAccessoryBar = settings.showAccessoryBar()))
     val state = mutableState.asStateFlow()
     fun selectProvider(provider: String) {
         if (provider !in setOf("SAF", "DIRECT")) return
@@ -30,5 +32,9 @@ class SettingsViewModel(private val settings: SettingsRepository) : ViewModel() 
         if (size !in 10..32) return
         settings.setEditorFontSize(size)
         mutableState.value = mutableState.value.copy(editorFontSize = size)
+    }
+    fun toggleAccessoryBar(show: Boolean) {
+        settings.setShowAccessoryBar(show)
+        mutableState.value = mutableState.value.copy(showAccessoryBar = show)
     }
 }

@@ -1,6 +1,110 @@
 # Historial de Structa
 
-## 2026-11-01 — Rediseño Depurado de Ajustes y Corrección de Permisos
+## 2026-11-01 — Selección y Copia de Texto en Modo Lectura
+
+- **Habilitación de selección de texto en modo lectura**:
+  - Tanto el doble toque (`onDoubleTap`) como la pulsación larga (`onLongPress`) activan la selección de palabras (`selectWord`) en modo lectura (`editable = false`).
+  - Arrastrar tras seleccionar (`dragAnchor`) expande fluidamente el rango seleccionado sin levantar el teclado virtual (`mInputShown = false`).
+  - Un toque simple fuera de la selección (`onSingleTapUp`) limpia la selección activa (`ClearSelectionCommand`) y cierra el menú contextual flotante sin abrir el teclado.
+- **Acciones contextuales y portapapeles (`performEditorContextAction`)**:
+  - Menú flotante nativo (`ActionMode.TYPE_FLOATING` con `ActionMode.Callback2` y `onGetContentRect` ajustado al rectángulo del texto seleccionado).
+  - En modo lectura se muestran y permiten exclusivamente acciones no destructivas: **"Copiar"** (`android.R.id.copy`) y **"Seleccionar todo"** (`android.R.id.selectAll`).
+  - Acciones que modifican el contenido ("Cortar" y "Pegar") quedan bloqueadas y ocultas mientras se está en modo lectura.
+  - Soporte de teclado físico para `Ctrl+C` y `Ctrl+A` en modo lectura.
+- **Verificación**:
+  - Test unitario agregado: `viewModeSupportsSelectionAndTextCopy` en `EditorDocumentsTest.kt`.
+  - Pruebas unitarias aprobadas (`:app:testDebugUnitTest`).
+  - Instalación y validación en emulador con teclado oculto (`mInputShown = false`).
+
+## 2026-11-01 — Modo Lectura por Defecto y Eliminación de "Comentar Línea"
+
+- **Modo lectura / visualización por defecto al abrir archivos**:
+  - Todo archivo abierto (`EditorUiState.isEditable = false`) se abre ahora en **modo lectura / ver** como estado base.
+  - Al estar en modo lectura:
+    - No se abre el teclado en pantalla (Gboard) accidentalmente al hacer tap o scroll en el documento (`editable = false` en `StructaEditorView`).
+    - El cursor parpadeante se oculta para una lectura limpia y sin distracciones (`cursorVisible = false`).
+    - La barra de símbolos (`accessorySymbols`) se oculta automáticamente.
+    - Se preserva la navegación completa: búsqueda en archivo, búsqueda global, índice de contenido (`Ctrl+Shift+O`), salto a línea e ir al inicio/final.
+- **Alternar lectura y edición (`isEditable`)**:
+  - Barra superior homogénea (TopBar): tanto **"Editar / Listo"** como **"Archivo"** se rediseñaron como `IconButton` limpios, sin texto y sin contorno, idénticos al botón de los tres puntos (⋮).
+    - En modo lectura: ícono de lápiz (`Icons.Filled.Edit`).
+    - En modo edición: ícono de verificación (`Icons.Filled.Check`).
+    - Menú "Archivo": ícono de documento (`Icons.AutoMirrored.Filled.InsertDriveFile`).
+  - Subtítulo en la TopBar que muestra el estado en vivo: `Go • 2.4 KB • Lectura` vs `Go • 2.4 KB • Edición`.
+  - Opción en el menú de tres puntos (⋮): *"Habilitar edición"* / *"Cambiar a modo lectura"*.
+  - Atajo de teclado físico: `Ctrl+E` (`EditorAction.TOGGLE_EDITABLE`).
+  - Cada pestaña de documento recuerda su propio estado de edición de forma independiente.
+- **Eliminación completa de "Comentar línea"**:
+  - Se removió `TOGGLE_COMMENT` de `EditorAction`, `KeyBindingHandler.kt`, `SmartEditCommands.kt` y `EditorScreen.kt`.
+  - Simplificación y limpieza de menús, alineada con la visión de Structa como editor de texto técnico ligero.
+- **Verificación**:
+  - Pruebas unitarias aprobadas (incluyendo nuevo test `documentOpensInViewModeByDefaultAndCanToggleEdit`).
+  - Compilación e instalación de APK debug exitosa en emulador (`emulator-5554`).
+
+## 2026-11-01 — Pivote: Editor de Texto Técnico y Archivos Flexibles (Solo Go para Código)
+
+- **Ajuste de la hoja de ruta (`fases.md`)**:
+  - Se eliminaron definitivamente las fases **16 (Control de versiones Git)** y **18 (Terminal integrada y ejecución)** para evitar sobrecarga y dependencias complejas.
+  - El proyecto se reorienta oficialmente hacia un **editor de texto técnico y archivos flexibles** de alto rendimiento.
+- **Simplificación del motor de lenguajes**:
+  - Se retiraron todos los lenguajes de programación superfluos (Kotlin, Java, Python, JavaScript, TypeScript, C/C++, Rust, Shell, CSS, HTML).
+  - Se mantiene únicamente **Go (`.go`)** como lenguaje de código para lectura/inspección visual.
+  - Se conservan exclusivamente los formatos de texto y datos flexibles: **Markdown (`.md`)**, **Plain Text (`.txt`)**, **JSON (`.json`, `.jsonl`)**, **YAML (`.yaml`, `.yml`)** y **XML (`.xml`)**.
+  - `DocumentSymbols.kt` optimizado para navegación real: se eliminó la extracción masiva de claves en JSON y YAML. Ahora se reserva exclusivamente como **Índice de contenido** para encabezados de **Markdown (`.md`)** y mapa de funciones/tipos de **Go (`.go`)**.
+  - Renombrado en la interfaz de usuario: de *"Esquema de símbolos"* a **"Índice de contenido"** (`Ctrl+Shift+O`).
+- **Verificación**:
+  - 187 tests unitarios aprobados (`:app:testDebugUnitTest`).
+  - Compilación y actualización del APK debug (`:app:assembleDebug`) sin errores.
+
+## 2026-11-01 — Ajustes de Barra de Símbolos y Optimización de Esquema de Símbolos
+
+- **Barra de símbolos configurable en Ajustes (`SettingsScreen`)**:
+  - Se agregó una preferencia con interruptor (`Switch`) bajo la categoría `EDITOR DE CÓDIGO` en `SettingsScreen`.
+- **Eliminación del predictor secundario en pantalla**:
+  - Se eliminó por completo la fila flotante de chips de autocompletado en `EditorScreen.kt`, evitando redundancia con el teclado del sistema y recuperando espacio vertical limpio para edición.
+  - Persistencia en preferencias compartidas (`show_accessory_bar`) a través de `SettingsRepository`, `AndroidSettingsRepository` y `SettingsViewModel`.
+  - Conexión reactiva en `StructaApp.kt` y `EditorScreen.kt`: al desactivar el switch, la barra de accesos rápidos sobre el teclado se oculta por completo, maximizando el espacio de lectura y edición.
+- **Optimización y protección de rendimiento para archivos pesados en Esquema de Símbolos**:
+  - Para evitar bloqueos o congelamiento del hilo principal de Compose (ANR) en archivos grandes o pesados:
+    - Se limitó la extracción léxica a un tope de seguridad de 1.000.000 de caracteres (~25.000 líneas) en `DocumentSymbolExtractor.kt`.
+    - La extracción se ejecuta asíncronamente en una corrutina en segundo plano con `Dispatchers.Default` dentro de `EditorScreen.kt`.
+    - Indicador visual de progreso (`loading`) en `DocumentOutlinePicker` mientras se calculan los símbolos.
+- **Verificación**:
+  - 189 tests unitarios aprobados (`:app:testDebugUnitTest`).
+  - Compilación y verificación visual en emulador Android (`Pixel 9 Pro` / Android 15), confirmando encendido/apagado del switch y salto instantáneo a símbolos en el editor.
+
+- **Fase 12 — Ergonomía de edición (Smart Editing Core)**:
+  - `SmartEditCommands.kt`:
+    - Inserción y sobre-escritura automática de delimitadores en pares: `()`, `[]`, `{}`, `""`, `''`, ````.
+    - Envoltorio de selecciones activas al escribir un delimitador de apertura.
+    - Borrado simétrico hacia atrás (`SmartDeleteBackwardCommand`) eliminando el par vacío completo.
+    - Indentación inteligente automática al pulsar Enter tras llaves `{`, corchetes `[`, paréntesis `(` o dos puntos `:`, con centrado y sangría correcta al abrir bloque entre llaves `{}`.
+    - Manipulación y atajos de línea:
+      - `ToggleCommentCommand`: comentar / descomentar línea o selección (`Ctrl+/`).
+      - `DuplicateLineCommand`: duplicar línea o selección arriba/abajo (`Shift+Alt+Up` / `Shift+Alt+Down` o `Ctrl+D`).
+      - `MoveLineCommand`: mover línea arriba/abajo (`Alt+Up` / `Alt+Down`).
+      - `DeleteLineCommand`: eliminar línea completa (`Ctrl+Shift+K`).
+      - `IndentLinesCommand`: indentar y desindentar con espacios o tabs (`Tab` / `Shift+Tab`).
+- **Fase 13 — Motor de lenguajes y sintaxis moderna (100% Kotlin Nativo)**:
+  - Tokenizador léxico universal `CodeTokenizer` en `domain/editor/syntax/Syntax.kt` sin dependencias externas:
+    - Soporte completo para **Kotlin, Java, Python, JavaScript, TypeScript, C / C++, Rust, Shell Script, CSS, HTML, XML, Markdown, Go, JSON y YAML**.
+    - Soporte multilínea para comentarios de bloque (`/* */`), strings triples (`"""`, `'''`), template literals ('`') y anotaciones/decoradores (`@Annotation`).
+    - Detección avanzada en `LanguageRegistry.forFileName(name, firstLine)`:
+      - Nombres especiales: `Dockerfile`, `Makefile`, `GNUmakefile`, `CMakeLists.txt`.
+      - Línea Shebang (`#!/usr/bin/env python3`, `#!/bin/bash`, `#!/usr/bin/env node`).
+      - Selector manual y persistencia por archivo.
+- **Fase 14 — Navegación de código y búsqueda global**:
+  - `DocumentSymbolExtractor.kt`: Extracción léxica en tiempo real de clases, funciones, interfaces, métodos, tipos y títulos de Markdown por lenguaje, con diálogo `DocumentOutlinePicker` (`Ctrl+Shift+O` o menú) para salto directo a línea y offset.
+  - `SearchWorkspace.kt` & `GlobalSearchViewModel.kt`: Motor de búsqueda y reemplazo en segundo plano en todo el workspace, con filtros automáticos de exclusión (`.git`, `build`, `node_modules`, `.gradle`), coincidencia de mayúsculas y reemplazo global en lote.
+- **Fase 15 — Autocompletado nativo y barra de accesorios móvil**:
+  - `CompletionEngine.kt`: Motor de autocompletado en Kotlin puro para palabras del buffer, identificadores y palabras clave del lenguaje activo con clasificación y ordenamiento de coincidencia exacta de prefijo.
+  - Tira de chips de sugerencias interactivas por encima del teclado virtual para autocompletar identificadores con un toque.
+  - Barra de símbolos de programación móvil con acceso rápido a caracteres esenciales: `{ } ( ) [ ] ; = : " ' / \ | & ! < > $ _ Tab`.
+- **Verificación**:
+  - 189 tests unitarios de JVM aprobados (`:app:testDebugUnitTest`).
+  - Compilación de APK debug exitosa (`:app:assembleDebug`).
+  - Instalación y validación funcional en emulador Android (`Pixel 9 Pro` / Android 15).
+
 
 - **Rediseño final de `SettingsScreen.kt` (Propuesta A limpia)**:
   - Implementación del diseño nativo de *Preference Rows* sin tarjetas, adaptado a la retroalimentación del usuario:

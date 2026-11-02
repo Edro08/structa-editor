@@ -43,4 +43,9 @@ class AndroidSettingsRepository(context: Context, name: String = "structa") : Se
         require(size in 10..32)
         preferences.edit().putInt("editor_font_size", size).apply()
     }
+
+    override fun showAccessoryBar(): Boolean = preferences.getBoolean("show_accessory_bar", true)
+    override fun setShowAccessoryBar(show: Boolean) {
+        preferences.edit().putBoolean("show_accessory_bar", show).apply()
+    }
 }

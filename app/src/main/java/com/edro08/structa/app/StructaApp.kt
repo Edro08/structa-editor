@@ -44,12 +44,14 @@ fun StructaApp(openIntent: Intent? = null, onOpenIntentHandled: (Intent) -> Unit
         factory = container.factory)
     val editor: EditorViewModel = viewModel(viewModelStoreOwner = activity, factory = container.factory)
     val quickOpen: QuickOpenViewModel = viewModel(viewModelStoreOwner = activity, factory = container.factory)
+    val globalSearch: GlobalSearchViewModel = viewModel(viewModelStoreOwner = activity, factory = container.factory)
     val settings: SettingsViewModel = viewModel(viewModelStoreOwner = activity, factory = container.factory)
     val homeState by home.state.collectAsStateWithLifecycle()
     val browserState by browser.state.collectAsStateWithLifecycle()
     val pickerState by directPicker.state.collectAsStateWithLifecycle()
     val editorState by editor.state.collectAsStateWithLifecycle()
     val quickState by quickOpen.state.collectAsStateWithLifecycle()
+    val globalSearchState by globalSearch.state.collectAsStateWithLifecycle()
     val settingsState by settings.state.collectAsStateWithLifecycle()
     var screen by rememberSaveable { mutableStateOf(Screen.HOME) }
     var platformMessage by rememberSaveable { mutableIntStateOf(0) }
@@ -90,7 +92,10 @@ fun StructaApp(openIntent: Intent? = null, onOpenIntentHandled: (Intent) -> Unit
     LaunchedEffect(editorState.tabs, browserState.workspace?.id) {
         browser.setOpenDocuments(editorState.tabs.map { it.documentId })
     }
-    LaunchedEffect(browserState.workspace?.root) { quickOpen.setRoot(browserState.workspace?.root?.id) }
+    LaunchedEffect(browserState.workspace?.root) {
+        quickOpen.setRoot(browserState.workspace?.root?.id)
+        globalSearch.setRoot(browserState.workspace?.root?.id)
+    }
     DisposableEffect(activity, editor) {
         val observer = LifecycleEventObserver { _, event ->
             if (event == Lifecycle.Event.ON_STOP) editor.checkpointSession()
@@ -213,6 +218,7 @@ fun StructaApp(openIntent: Intent? = null, onOpenIntentHandled: (Intent) -> Unit
                              })
                         Screen.EDITOR -> EditorScreen(editorState, onBack = { screen = Screen.BROWSER },
                              editorFont = settingsState.editorFont, editorFontSize = settingsState.editorFontSize,
+                             showAccessoryBar = settingsState.showAccessoryBar,
                              onExplore = { screen = Screen.BROWSER }, onLanguage = editor::setLanguage,
                              onMessage = editor::showMessage,
                               onSave = editor::save, onSaveAll = editor::saveAll, onSelectDocument = editor::selectDocument,
@@ -222,7 +228,7 @@ fun StructaApp(openIntent: Intent? = null, onOpenIntentHandled: (Intent) -> Unit
                              onSearch = editor::setSearch, onFormat = editor::format, onUndo = editor::undo,
                              onSearchOptions = editor::setSearchOptions, onReplacement = editor::setReplacement,
                              onFindNext = editor::findNext, onReplace = editor::replace, onQuickOpen = quickOpen::open,
-                             onRedo = editor::redo, onLine = editor::goToLine,
+                             onGlobalSearch = globalSearch::open, onToggleEditable = editor::toggleEditable, onRedo = editor::redo, onLine = editor::goToLine,
                              onGoToStart = editor::goToStart, onGoToEnd = editor::goToEnd, onSaveAs = {
                                 editor.prepareSave()?.let { snapshot ->
                                     try {
@@ -244,6 +250,7 @@ fun StructaApp(openIntent: Intent? = null, onOpenIntentHandled: (Intent) -> Unit
                                  }
                              }, onTheme = settings::selectTheme,
                              onFont = settings::selectFont, onFontSize = settings::selectFontSize,
+                             onToggleAccessoryBar = settings::toggleAccessoryBar,
                              directAuthorized = directAuthorized, onManagePermission = ::manageDirectPermission)
                     }
                     editorState.message?.let { MessageOverlay(it, editor::dismissMessage) }
@@ -258,6 +265,23 @@ fun StructaApp(openIntent: Intent? = null, onOpenIntentHandled: (Intent) -> Unit
                             screen = Screen.EDITOR
                         }, onDismiss = quickOpen::close)
                      if (platformMessage != 0) MessageOverlay(stringResource(platformMessage)) { platformMessage = 0 }
+                     if (globalSearchState.visible) {
+                         GlobalSearchDialog(
+                             state = globalSearchState,
+                             onQuery = globalSearch::setQuery,
+                             onReplacement = globalSearch::setReplacement,
+                             onCaseSensitive = globalSearch::setCaseSensitive,
+                             onSearch = globalSearch::executeSearch,
+                             onReplaceAll = globalSearch::replaceAll,
+                             onSelectMatch = { match ->
+                                 globalSearch.close()
+                                 editor.open(match.file.entry)
+                                 editor.goToLine(match.line + 1)
+                                 screen = Screen.EDITOR
+                             },
+                             onDismiss = globalSearch::close
+                         )
+                     }
                 }
             }
         }

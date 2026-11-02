@@ -24,6 +24,7 @@ import com.edro08.structa.domain.editor.buffer.PieceTableBuffer
 import com.edro08.structa.domain.editor.command.InsertTextCommand
 import com.edro08.structa.domain.editor.command.MoveCursorCommand
 import com.edro08.structa.domain.editor.command.SetSelectionCommand
+import com.edro08.structa.domain.editor.command.ClearSelectionCommand
 import com.edro08.structa.domain.editor.cursor.TextOffset
 import com.edro08.structa.ui.editor.input.*
 import com.edro08.structa.ui.editor.model.EditorLine
@@ -67,17 +68,20 @@ class StructaEditorView @JvmOverloads constructor(
         }
     }
     var onEditorAction: (EditorAction) -> Unit = {}
+    fun hideKeyboard() {
+        val imm = context.getSystemService(android.content.Context.INPUT_METHOD_SERVICE) as? android.view.inputmethod.InputMethodManager
+        imm?.hideSoftInputFromWindow(windowToken, 0)
+        windowInsetsController?.hide(android.view.WindowInsets.Type.ime())
+    }
+
     var editable: Boolean = false
         set(value) {
-            if (field == value) return
             field = value
-            isFocusable = value
-            isFocusableInTouchMode = value
             if (!value) {
                 connection?.closeConnection()
                 connection = null
                 selectionMode?.finish()
-                clearFocus()
+                hideKeyboard()
             }
         }
     private val inputChanged: (Boolean) -> Unit = {
@@ -164,23 +168,29 @@ class StructaEditorView @JvmOverloads constructor(
                 input?.execute(MoveCursorCommand(TextOffset(offsetAt(event.x, event.y))), false)
                 selectionMode?.finish()
                 showKeyboard()
+            } else if (!editable) {
+                if (selectionMode != null || input?.engine?.selection != null) {
+                    input?.execute(ClearSelectionCommand, false)
+                    selectionMode?.finish()
+                }
             }
-            return performClick()
+            return if (editable) performClick() else true
         }
 
         override fun onDoubleTap(event: MotionEvent): Boolean {
-            if (!editable) return false
             selectWord(event.x, event.y)
             return true
         }
 
         override fun onLongPress(event: MotionEvent) {
-            if (editable) selectWord(event.x, event.y)
+            selectWord(event.x, event.y)
         }
     })
 
     init {
         isClickable = true
+        isFocusable = true
+        isFocusableInTouchMode = true
         isVerticalScrollBarEnabled = true
         isHorizontalScrollBarEnabled = true
         scrollBarStyle = SCROLLBARS_INSIDE_OVERLAY
@@ -406,6 +416,24 @@ class StructaEditorView @JvmOverloads constructor(
 
     override fun onTouchEvent(event: MotionEvent): Boolean {
         if (engine == null) return super.onTouchEvent(event)
+        if (!editable) {
+            if (event.actionMasked == MotionEvent.ACTION_DOWN) dragAnchor = null
+            if (event.actionMasked == MotionEvent.ACTION_MOVE && dragAnchor != null) {
+                parent?.requestDisallowInterceptTouchEvent(true)
+                val inset = 32f * resources.displayMetrics.density
+                val dx = if (event.x < inset) -inset else if (event.x > width - inset) inset else 0f
+                val dy = if (event.y < inset) -inset else if (event.y > height - inset) inset else 0f
+                scrollToPosition(offsetX + dx, offsetY + dy)
+                input?.execute(SetSelectionCommand(TextOffset(dragAnchor!!), TextOffset(offsetAt(event.x, event.y))), false)
+                return true
+            }
+            val handled = gestures.onTouchEvent(event)
+            if (event.actionMasked == MotionEvent.ACTION_UP || event.actionMasked == MotionEvent.ACTION_CANCEL) {
+                parent?.requestDisallowInterceptTouchEvent(false)
+                dragAnchor = null
+            }
+            return handled || true
+        }
         if (event.actionMasked == MotionEvent.ACTION_DOWN) dragAnchor = null
         if (editable && event.actionMasked == MotionEvent.ACTION_MOVE && dragAnchor != null) {
             parent?.requestDisallowInterceptTouchEvent(true)
@@ -425,6 +453,7 @@ class StructaEditorView @JvmOverloads constructor(
     }
 
     override fun performClick(): Boolean {
+        if (!editable) return false
         super.performClick()
         return true
     }
@@ -476,10 +505,16 @@ class StructaEditorView @JvmOverloads constructor(
         scheduleSyntax()
         input?.addListener(inputChanged)
         resetBlink()
+        if (!editable) {
+            hideKeyboard()
+        }
     }
 
     override fun onFocusChanged(gainFocus: Boolean, direction: Int, previouslyFocusedRect: Rect?) {
         super.onFocusChanged(gainFocus, direction, previouslyFocusedRect)
+        if (!editable && gainFocus) {
+            hideKeyboard()
+        }
         if (!gainFocus) {
             connection?.closeConnection()
             connection = null
@@ -495,11 +530,17 @@ class StructaEditorView @JvmOverloads constructor(
         invalidate()
     }
 
+    // Allow focus so FloatingActionMode (selection/copy toolbar) can display
+    override fun hasFocusable(): Boolean = super.hasFocusable()
+
     override fun onCheckIsTextEditor(): Boolean = editable
 
     override fun onCreateInputConnection(outAttrs: EditorInfo): InputConnection? {
+        if (!editable) {
+            hideKeyboard()
+            return null
+        }
         val session = input ?: return null
-        if (!editable) return null
         connection?.closeConnection()
         outAttrs.inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_MULTI_LINE or InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS
         outAttrs.imeOptions = EditorInfo.IME_FLAG_NO_EXTRACT_UI or EditorInfo.IME_FLAG_NO_FULLSCREEN or EditorInfo.IME_ACTION_NONE
@@ -522,8 +563,11 @@ class StructaEditorView @JvmOverloads constructor(
         if (editable && keys?.handle(event) == true) true else super.onKeyDown(keyCode, event)
 
     private fun showKeyboard() {
+        if (!editable) return
         requestFocus()
         windowInsetsController?.show(android.view.WindowInsets.Type.ime())
+        val imm = context.getSystemService(android.content.Context.INPUT_METHOD_SERVICE) as? android.view.inputmethod.InputMethodManager
+        imm?.showSoftInput(this, android.view.inputmethod.InputMethodManager.SHOW_IMPLICIT)
     }
 
     fun offsetAt(x: Float, y: Float): Int {
@@ -562,7 +606,10 @@ class StructaEditorView @JvmOverloads constructor(
     private fun selectWord(x: Float, y: Float) {
         val session = input ?: return
         val buffer = session.buffer
-        if (buffer.length == 0) { showKeyboard(); return }
+        if (buffer.length == 0) {
+            if (editable) showKeyboard()
+            return
+        }
         val offset = offsetAt(x, y).coerceAtMost(buffer.length - 1)
         fun isWord(char: Char) = char.isLetterOrDigit() || char == '_'
         var start = offset
@@ -573,24 +620,36 @@ class StructaEditorView @JvmOverloads constructor(
         }
         session.execute(SetSelectionCommand(TextOffset(start), TextOffset(end)), false)
         dragAnchor = start
-        showKeyboard()
+        if (editable) {
+            showKeyboard()
+        } else {
+            requestFocus()
+            hideKeyboard()
+        }
         showSelectionMenu()
     }
 
     private fun showSelectionMenu() {
         if (selectionMode != null) { selectionMode?.invalidate(); return }
-        selectionMode = startActionMode(object : ActionMode.Callback {
+        selectionMode = startActionMode(object : ActionMode.Callback2() {
             override fun onCreateActionMode(mode: ActionMode, menu: Menu): Boolean {
                 menu.add(0, android.R.id.selectAll, 0, "Seleccionar todo")
+                    ?.setShowAsAction(MenuItem.SHOW_AS_ACTION_IF_ROOM)
                 menu.add(0, android.R.id.copy, 1, "Copiar")
-                menu.add(0, android.R.id.cut, 2, "Cortar")
-                menu.add(0, android.R.id.paste, 3, "Pegar")
+                    ?.setShowAsAction(MenuItem.SHOW_AS_ACTION_ALWAYS)
+                if (editable) {
+                    menu.add(0, android.R.id.cut, 2, "Cortar")
+                        ?.setShowAsAction(MenuItem.SHOW_AS_ACTION_ALWAYS)
+                    menu.add(0, android.R.id.paste, 3, "Pegar")
+                        ?.setShowAsAction(MenuItem.SHOW_AS_ACTION_ALWAYS)
+                }
                 return true
             }
             override fun onPrepareActionMode(mode: ActionMode, menu: Menu): Boolean {
                 val selected = input?.engine?.selection != null
-                menu.findItem(android.R.id.copy).isEnabled = selected
-                menu.findItem(android.R.id.cut).isEnabled = selected
+                menu.findItem(android.R.id.copy)?.isEnabled = selected
+                menu.findItem(android.R.id.cut)?.isEnabled = selected && editable
+                menu.findItem(android.R.id.paste)?.isEnabled = editable
                 return true
             }
             override fun onActionItemClicked(mode: ActionMode, item: MenuItem): Boolean {
@@ -599,21 +658,49 @@ class StructaEditorView @JvmOverloads constructor(
                 return handled
             }
             override fun onDestroyActionMode(mode: ActionMode) { selectionMode = null }
+            override fun onGetContentRect(mode: ActionMode, view: View, outRect: Rect) {
+                val editor = engine
+                if (editor == null) {
+                    outRect.set(0, 0, width, height)
+                    return
+                }
+                val buffer = editor.document.buffer
+                val metrics = renderer.metrics(buffer.lineCount, style)
+                val sel = editor.selection
+                if (sel == null) {
+                    outRect.set(0, 0, width, height)
+                    return
+                }
+                val selStart = sel.start.value.coerceIn(0, buffer.length)
+                val selEnd = sel.end.value.coerceIn(0, buffer.length)
+                val startLine = buffer.getLineForOffset(selStart)
+                val endLine = buffer.getLineForOffset(selEnd)
+                val top = (startLine * metrics.lineHeight - offsetY).toInt().coerceIn(0, height)
+                val bottom = (((endLine + 1) * metrics.lineHeight) - offsetY).toInt().coerceIn(top + metrics.lineHeight.toInt().coerceAtLeast(1), height)
+                val left = (metrics.gutterWidth + metrics.textPadding - offsetX).toInt().coerceAtLeast(0)
+                val right = width.coerceAtLeast(left + 100)
+                outRect.set(left, top, right, bottom)
+            }
         }, ActionMode.TYPE_FLOATING)
     }
 
     fun performEditorContextAction(id: Int): Boolean {
         val session = input ?: return false
-        if (!editable) return false
         val clipboard = context.getSystemService(ClipboardManager::class.java)
         when (id) {
             android.R.id.selectAll -> session.selectAll()
-            android.R.id.copy, android.R.id.cut -> {
+            android.R.id.copy -> {
                 if (session.selectionStart == session.selectionEnd) return false
                 clipboard.setPrimaryClip(ClipData.newPlainText("Structa", session.selectedText()))
-                if (id == android.R.id.cut) session.execute(InsertTextCommand(""))
+            }
+            android.R.id.cut -> {
+                if (!editable) return false
+                if (session.selectionStart == session.selectionEnd) return false
+                clipboard.setPrimaryClip(ClipData.newPlainText("Structa", session.selectedText()))
+                session.execute(InsertTextCommand(""))
             }
             android.R.id.paste -> {
+                if (!editable) return false
                 val clip = clipboard.primaryClip ?: return false
                 if (clip.itemCount == 0) return false
                 val text = clip.getItemAt(0).coerceToText(context)?.toString() ?: return false

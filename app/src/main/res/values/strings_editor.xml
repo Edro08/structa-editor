@@ -73,4 +73,11 @@
         <item quantity="other">%d archivos indexados · hasta 100 resultados</item>
     </plurals>
     <string name="editor_word_wrap">Ajuste de línea</string>
+    <string name="editor_mode_view">Lectura</string>
+    <string name="editor_mode_edit">Edición</string>
+    <string name="editor_action_edit">Editar</string>
+    <string name="editor_action_view">Listo</string>
+    <string name="editor_switch_to_view">Cambiar a modo lectura</string>
+    <string name="editor_switch_to_edit">Habilitar edición</string>
+    <string name="editor_toggle_editable">Alternar lectura/edición</string>
 </resources>

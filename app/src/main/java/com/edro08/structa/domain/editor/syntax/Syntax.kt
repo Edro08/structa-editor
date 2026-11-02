@@ -11,7 +11,14 @@ interface LanguageTokenizer {
     fun tokenize(text: CharSequence, state: TokenizerState = TokenizerState(),
         checkCancelled: () -> Unit = {}): TokenizationResult
 }
-data class Language(val id: String, val title: String, val extensions: Set<String>, val tokenizer: LanguageTokenizer)
+data class Language(
+    val id: String,
+    val title: String,
+    val extensions: Set<String>,
+    val tokenizer: LanguageTokenizer,
+    val keywords: Set<String> = emptySet(),
+    val commentPrefix: String = "// "
+)
 
 /** Filename detection belongs here, never in the renderer. Unknown extensions use plain text. */
 object LanguageRegistry {
@@ -19,23 +26,36 @@ object LanguageRegistry {
         override fun tokenize(text: CharSequence, state: TokenizerState, checkCancelled: () -> Unit) =
             TokenizationResult(emptyList(), TokenizerState())
     })
-    val languages = listOf(plain,
-        Language("go", "Go", setOf("go"), CodeTokenizer("go",
-            "break case chan const continue default defer else fallthrough for func go goto if import interface map package range return select struct switch type var true false nil")),
-        Language("json", "JSON", setOf("json", "jsonl"), CodeTokenizer("json", "true false null")),
-        Language("yaml", "YAML", setOf("yaml", "yml"), CodeTokenizer("yaml", "true false null yes no on off")),
-        Language("markdown", "Markdown", setOf("md", "markdown"), MarkdownTokenizer),
-        Language("xml", "XML", setOf("xml", "svg", "xsd", "xsl", "xslt"), XmlTokenizer))
 
-    fun forFileName(name: String): Language {
-        val extension = name.substringAfterLast('.', "").lowercase(java.util.Locale.ROOT)
+    private fun code(id: String, title: String, extensions: Set<String>, keywords: String, commentPrefix: String = "// "): Language {
+        val wordSet = keywords.split(' ').filter { it.isNotBlank() }.toSet()
+        return Language(id, title, extensions, CodeTokenizer(id, wordSet), wordSet, commentPrefix)
+    }
+
+    val goLang = code("go", "Go", setOf("go"),
+        "break case chan const continue default defer else fallthrough for func go goto if import interface map package range return select struct switch type var true false nil",
+        "// ")
+
+    val jsonLang = code("json", "JSON", setOf("json", "jsonl"), "true false null")
+    val yamlLang = code("yaml", "YAML", setOf("yaml", "yml"), "true false null yes no on off", "# ")
+    val markdownLang = Language("markdown", "Markdown", setOf("md", "markdown"), MarkdownTokenizer, commentPrefix = "> ")
+    val xmlLang = Language("xml", "XML", setOf("xml", "svg", "xsd", "xsl", "xslt"), XmlTokenizer, commentPrefix = "<!-- ")
+
+    val languages = listOf(
+        plain, markdownLang, jsonLang, yamlLang, xmlLang, goLang
+    )
+
+    fun forFileName(name: String, firstLine: String = ""): Language {
+        val lower = name.lowercase(java.util.Locale.ROOT)
+        val extension = lower.substringAfterLast('.', "")
         return languages.firstOrNull { extension in it.extensions } ?: plain
     }
 }
 
 /** Small deterministic lexical highlighter, not a compiler/parser. Loops are cancellation-aware. */
-internal class CodeTokenizer(private val kind: String, keywords: String) : LanguageTokenizer {
-    private val words = keywords.split(' ').toSet()
+internal class CodeTokenizer(private val kind: String, private val words: Set<String>) : LanguageTokenizer {
+    constructor(kind: String, keywords: String) : this(kind, keywords.split(' ').filter { it.isNotBlank() }.toSet())
+
     override fun tokenize(text: CharSequence, state: TokenizerState, checkCancelled: () -> Unit): TokenizationResult {
         val spans = mutableListOf<SyntaxSpan>()
         var depth = state.commentDepth
@@ -65,8 +85,10 @@ internal class CodeTokenizer(private val kind: String, keywords: String) : Langu
                     i = (i + 2).coerceAtMost(text.length)
                 else i++
             }
-            // Ordinary code/JSON quotes do not leak over a malformed line. YAML quotes may span lines.
-            if (delimiter.length == 1 && delimiter != "`" && kind != "yaml") delimiter = ""
+            // Multi-line quotes keep delimiter across lines: """ , ''' , ` , YAML quotes.
+            // Ordinary single-line code quotes do not leak across lines on unclosed quote.
+            val isMultilineQuote = delimiter.length == 3 || delimiter == "`" || kind == "yaml"
+            if (!isMultilineQuote && delimiter.isNotEmpty()) delimiter = ""
         }
         while (i < text.length) {
             checkCancelled()
@@ -76,14 +98,51 @@ internal class CodeTokenizer(private val kind: String, keywords: String) : Langu
             val c = text[i]
             when {
                 c.isWhitespace() -> i++
-                (kind == "yaml" && c == '#' && (i == 0 || text[i - 1].isWhitespace())) ||
-                    (kind == "go" && at("//")) -> {
+                // Hash comments
+                (kind in setOf("python", "shell") && c == '#') ||
+                (kind == "yaml" && c == '#' && (i == 0 || text[i - 1].isWhitespace())) -> {
                     i = text.length; emit(start, SyntaxStyle.COMMENT)
                 }
-                kind == "go" && at("/*") -> {
+                // Preprocessor directives in C/C++
+                kind == "cpp" && c == '#' -> {
+                    i++
+                    while (i < text.length && (text[i].isLetterOrDigit() || text[i] == '_')) { tick(); i++ }
+                    emit(start, SyntaxStyle.KEYWORD)
+                }
+                // C-style single-line comments
+                kind !in setOf("python", "shell", "yaml") && at("//") -> {
+                    i = text.length; emit(start, SyntaxStyle.COMMENT)
+                }
+                // C-style multi-line comments
+                kind !in setOf("python", "shell", "yaml") && at("/*") -> {
                     depth = 1; i += 2; comment(); emit(start, SyntaxStyle.COMMENT)
                 }
-                c == '"' || (c == '\'' && kind != "json") || (c == '`' && kind == "go") -> {
+                // Triple-quoted multi-line strings
+                (kind in setOf("python", "kotlin", "java") && at("\"\"\"")) -> {
+                    delimiter = "\"\"\""; i += 3; string(); emit(start, SyntaxStyle.STRING)
+                }
+                (kind == "python" && at("'''")) -> {
+                    delimiter = "'''"; i += 3; string(); emit(start, SyntaxStyle.STRING)
+                }
+                // Annotations/decorators (@annotation)
+                c == '@' && kind in setOf("kotlin", "java", "python", "typescript") -> {
+                    i++
+                    while (i < text.length && (text[i].isLetterOrDigit() || text[i] in "_.")) { tick(); i++ }
+                    emit(start, SyntaxStyle.KEYWORD)
+                }
+                // Regular strings / template literals
+                c == '"' || (c == '\'' && kind != "json") || (c == '`' && kind in setOf("go", "javascript", "typescript")) -> {
+                    // In Rust, 'a lifetime shouldn't be treated as unclosed string
+                    if (kind == "rust" && c == '\'' && i + 1 < text.length && text[i + 1].isLetter()) {
+                        val isChar = (i + 2 < text.length && text[i + 2] == '\'') ||
+                                     (i + 3 < text.length && text[i + 1] == '\\' && text[i + 3] == '\'')
+                        if (!isChar) {
+                            i++
+                            while (i < text.length && (text[i].isLetterOrDigit() || text[i] == '_')) { tick(); i++ }
+                            emit(start, SyntaxStyle.KEYWORD)
+                            continue
+                        }
+                    }
                     delimiter = c.toString()
                     i += delimiter.length; string()
                     var next = i
@@ -105,7 +164,7 @@ internal class CodeTokenizer(private val kind: String, keywords: String) : Langu
                     if (kind == "yaml" && next < text.length && text[next] == ':') emit(start, SyntaxStyle.KEY)
                     else if (word in words) emit(start, SyntaxStyle.KEYWORD)
                 }
-                else -> { i++; if (c in "{}[]():,=+-*/!<>?&|%;.@") emit(start, SyntaxStyle.OPERATOR) }
+                else -> { i++; if (c in "{}[]():,=+-*/!<>?&|%;.@#^~") emit(start, SyntaxStyle.OPERATOR) }
             }
         }
         return TokenizationResult(spans.toList(), TokenizerState(depth, delimiter))
