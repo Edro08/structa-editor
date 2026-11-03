@@ -428,8 +428,8 @@ class EditorViewModel(
         state.value.inputSession?.finishComposingText()
         val current = state.value
         val entry = current.entry ?: return null
-        if (!canEdit(current) || current.pendingSave != null || current.saving) return null
-        val document = current.inputSession!!.engine.document
+        if (current.inputSession == null || current.pendingSave != null || current.saving) return null
+        val document = current.inputSession.engine.document
         val snapshot = SaveSnapshot(entry.name, current.value.text, document, document.revision)
         mutableState.value = current.copy(pendingSave = snapshot)
         return snapshot
@@ -444,6 +444,17 @@ class EditorViewModel(
             return
         }
         writeSnapshot(snapshot, destination, closeAfter = false)
+    }
+
+    fun cancelSave() {
+        mutableState.value = state.value.copy(pendingSave = null)
+    }
+
+    fun saveAs(destination: DocumentId) {
+        if (state.value.pendingSave == null) {
+            prepareSave() ?: return
+        }
+        completeSave(destination)
     }
 
     fun save() { saveDocument(state.value.entry?.id ?: return, closeAfter = false) }

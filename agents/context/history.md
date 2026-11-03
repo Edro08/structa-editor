@@ -2,6 +2,44 @@
 
 
 
+## 2026-11-02 — Fase 16: Vista Renderizada Markdown, Rediseño de Diálogos OLED y Selector de Guardar Como
+
+- **Selector Visual de Carpetas y Diálogo "Guardar Como..." (`FolderPickerDialog`, `EditorScreen`)**:
+  - Eliminación total de SAF (`ActivityResultContracts.CreateDocument`), reemplazándolo por un flujo in-app con `DirectFileSystem`.
+  - Creación de `FolderPickerDialog`: selector de carpetas Pure OLED con navegación en árbol, retroceso (`←`), creación de carpetas en vivo (`+`), soporte de almacenamiento interno y detección de tarjetas SD secundarias en `/storage`.
+  - Eliminación de atajos innecesarios (solo se muestran volúmenes reales de almacenamiento: interno y SD).
+  - Eliminación del modo manual innecesario; selección directa con botón «Cambiar» o toque en la tarjeta de carpeta.
+  - Corrección visual del campo de nombre de archivo: etiqueta externa alineada con `labelMedium` y placeholder interno para evitar recortes o notches antiestéticos.
+- **Rediseño Completo de Diálogos del Sistema a Pure OLED**:
+  - Diálogo de selección de lenguaje con tarjetas interactivas y badges temáticos (`MD`, `{ }`, `YML`, `< >`, `GO`, `TXT`).
+  - Diálogos de confirmación ("Quitar del historial", "Eliminar archivo/carpeta", "Cambios sin guardar") con contenedores `DarkSurface`, esquinas `24.dp`, badges de alerta y botones de acción consistentes.
+  - Buscador global en Workspace (`GlobalSearchDialog`) modernizado con esquinas de `14.dp`, toggle de reemplazo y chips interactivos.
+
+- **Simplificación de Acciones del Menú Contextual en Explorador (`BrowserScreen`)**:
+  - Se modificaron las opciones del menú de 3 puntos para que muestren únicamente la acción concreta ("Abrir", "Expandir"/"Contraer", "Renombrar", "Eliminar") eliminando el nombre redundante del archivo o carpeta.
+- **Soporte de Negrita + Cursiva (`***texto***`) y Spans con Color HTML**:
+  - Reconocimiento de triple asterisco/guion bajo (`***texto***` / `___texto___`) como `MarkdownSpan.BoldItalic`, renderizándolo con peso negrita e inclinación cursiva simultánea.
+  - Reconocimiento de etiquetas `<span style="color:...">texto</span>` y `<font color="...">texto</font>` como `MarkdownSpan.Colored`, con soporte para nombres de colores (orange, amber, red, green, cyan, blue, purple, etc.) y valores hexadecimales (`#...`).
+  - Limpieza automática de etiquetas HTML residuales para evitar que se filtren tags crudos en el texto renderizado.
+  - Soporte de spans enriquecidos (incluyendo texto con color) dentro de los encabezados H1–H6.
+- **Parser nativo de Markdown en Kotlin puro (`MarkdownParser`)**:
+  - Implementación desacoplada sin dependencias de Android ni librerías externas en `domain/editor/markdown/`.
+  - Reconocimiento de bloques: encabezados (H1–H6), listas viñeteadas y numeradas con indentación recursiva, bloques de código cercados (```lang), citas (> blockquotes) y líneas de separación (---).
+  - Reconocimiento de formato en línea: negrita (**texto**), cursiva (*texto*), código en línea (`codigo`) y enlaces ([texto](url)).
+- **Componente de visualización Compose (`MarkdownViewer`)**:
+  - Renderizado virtualizado fluido con `LazyColumn` y diseño integrado a la paleta Pure OLED.
+  - Bloques de código con fondo `DarkSurfaceRaised`, etiqueta de lenguaje monoespaciada y botón de copiado rápido con confirmación visual.
+  - Citas con barra de acento lateral en `StructaPurple` e inclinación en cursiva.
+  - Envuelto en `SelectionContainer` para selección libre de texto y copiado al portapapeles.
+- **Integración ergonómica en el Editor (`EditorScreen`)**:
+  - Los archivos `.md` se abren por defecto en la **Vista limpia renderizada** cuando están en modo lectura.
+  - Botón de alternancia en la barra superior entre vista renderizada y código fuente sin salir de lectura.
+  - Al presionar el botón de editar (`Ctrl+E` o lápiz), conmuta instantáneamente al editor Piece Table para escribir. Al volver a lectura, re-renderiza los cambios de inmediato.
+- **Verificación**:
+  - Suite de pruebas unitarias aprobada: 193 tests (`:app:testDebugUnitTest`).
+  - Pruebas instrumentadas compiladas sin errores (`:app:compileDebugAndroidTestKotlin`).
+  - Desplegado y verificado en emulador Android.
+
 ## 2026-11-02 — Alineación Visual con Mockup Pure OLED: Botones, Badges y Navegación
 
 - **Alineación de Botones Primarios con Degradado Profundo (Violet 600 a Indigo 600)**:

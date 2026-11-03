@@ -66,7 +66,8 @@ class DirectFileSystem : FileSystem {
 
     override suspend fun write(destination: DocumentId, content: String): Unit = withContext(Dispatchers.IO) {
         val target = file(destination)
-        if (!target.isFile) throw IOException("El archivo no existe o es una carpeta")
+        if (target.exists() && target.isDirectory) throw IOException("No se puede escribir en una carpeta")
+        target.parentFile?.mkdirs()
         target.outputStream().bufferedWriter(Charsets.UTF_8).use { it.write(content) }
     }
 
