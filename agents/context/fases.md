@@ -80,10 +80,9 @@ Las fases **1–16** representan el desarrollo del motor base, arquitectura, erg
 
 ## 🟡 Hoja de ruta técnica
 
-### Fase 17 — Robustez móvil y persistencia
+### Fase 18 — Robustez móvil y persistencia (Draft Crash Recovery)
 *Objetivo: Protección contra pérdida de datos en el ciclo de vida de Android.*
-- Recuperación automática de borradores (*Draft Crash Recovery*) ante cierres del sistema o falta de memoria.
-- Detección y lectura de codificaciones alternativas (UTF-16, ISO-8859-1).
+- Recuperación automática de borradores (*Draft Crash Recovery*) ante cierres inesperados, rotación o falta de memoria.
 
 ---
 

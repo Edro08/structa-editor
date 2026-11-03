@@ -3,6 +3,7 @@ package com.edro08.structa.domain.editor.markdown
 /**
  * Pure Kotlin line-based Markdown parser.
  * Converts markdown text into structured [MarkdownNode] blocks without external dependencies.
+ * Complies with domain architecture rules (zero Android/androidx dependencies).
  */
 object MarkdownParser {
 
@@ -11,6 +12,9 @@ object MarkdownParser {
     private val BULLET_LIST_REGEX = Regex("""^(\s*)[-*+]\s+(.+)$""")
     private val NUMBERED_LIST_REGEX = Regex("""^(\s*)(\d+)[\.\)]\s+(.+)$""")
     private val BLOCKQUOTE_REGEX = Regex("""^\s*>\s?(.*)$""")
+
+    private val TABLE_DELIM_CELL_REGEX = Regex("""^:?-+:?$""")
+    private val TABLE_PIPE_SPLIT = Regex("""(?<!\\)\|""")
 
     // Inline regex:
     // Group 1: `code`
@@ -71,10 +75,12 @@ object MarkdownParser {
             }
         }
 
-        for (line in lines) {
+        var i = 0
+        while (i < lines.size) {
+            val line = lines[i]
             val trimmed = line.trim()
 
-            // 1. Fenced Code Blocks (```)
+            // 1. Fenced Code Blocks (``` or ~~~)
             if (trimmed.startsWith("```") || trimmed.startsWith("~~~")) {
                 if (inCodeFence) {
                     nodes.add(MarkdownNode.CodeBlock(codeLang, codeLines.joinToString("\n")))
@@ -87,57 +93,92 @@ object MarkdownParser {
                     codeLang = trimmed.substring(3).trim()
                     codeLines.clear()
                 }
+                i++
                 continue
             }
 
             if (inCodeFence) {
                 codeLines.add(line)
+                i++
                 continue
             }
 
             // 2. Empty / Blank line separates blocks
             if (trimmed.isEmpty()) {
                 flushParagraph()
+                i++
                 continue
             }
 
-            // 3. Thematic break (---, ***, ___)
+            // 3. GFM Table Detection (Current line has pipes and next line is a valid delimiter row)
+            if (i + 1 < lines.size && isTableCandidate(line) && isTableDelimiterRow(lines[i + 1])) {
+                flushParagraph()
+                val rawHeaders = splitTableCells(line)
+                val headers = rawHeaders.map { TableCell(parseInline(it)) }
+                val alignments = parseTableAlignments(lines[i + 1], headers.size)
+                val rows = mutableListOf<TableRow>()
+                i += 2
+
+                while (i < lines.size) {
+                    val rowLine = lines[i]
+                    val rowTrimmed = rowLine.trim()
+                    if (rowTrimmed.isEmpty() || !rowTrimmed.contains("|") || isTableDelimiterRow(rowLine)) {
+                        break
+                    }
+                    val rawCells = splitTableCells(rowLine)
+                    val cells = List(headers.size) { colIdx ->
+                        if (colIdx < rawCells.size) TableCell(parseInline(rawCells[colIdx]))
+                        else TableCell(emptyList())
+                    }
+                    rows.add(TableRow(cells))
+                    i++
+                }
+
+                nodes.add(MarkdownNode.Table(TableRow(headers), alignments, rows))
+                continue
+            }
+
+            // 4. Thematic break (---, ***, ___)
             if (THEMATIC_BREAK_REGEX.matches(line)) {
                 flushParagraph()
                 nodes.add(MarkdownNode.ThematicBreak)
+                i++
                 continue
             }
 
-            // 4. Headings (# H1 to ###### H6)
+            // 5. Headings (# H1 to ###### H6)
             val headingMatch = HEADING_REGEX.matchEntire(line)
             if (headingMatch != null) {
                 flushParagraph()
                 val level = headingMatch.groupValues[1].length
                 val title = headingMatch.groupValues[2].trim()
                 nodes.add(MarkdownNode.Heading(level, parseInline(title)))
+                i++
                 continue
             }
 
-            // 5. Blockquote (> ...)
+            // 6. Blockquote (> ...)
             val quoteMatch = BLOCKQUOTE_REGEX.matchEntire(line)
             if (quoteMatch != null) {
                 flushParagraph()
                 val content = quoteMatch.groupValues[1]
                 nodes.add(MarkdownNode.Blockquote(parseInline(content)))
+                i++
                 continue
             }
 
-            // 6. Unordered Bullet list (- item, * item, + item)
+            // 7. Unordered Bullet list (- item, * item, + item)
             val bulletMatch = BULLET_LIST_REGEX.matchEntire(line)
             if (bulletMatch != null) {
                 flushParagraph()
                 val indent = bulletMatch.groupValues[1].length
                 val content = bulletMatch.groupValues[2].trim()
                 nodes.add(MarkdownNode.BulletItem(depth = indent / 2, parseInline(content)))
+                i++
                 continue
             }
 
-            // 7. Ordered Numbered list (1. item, 2. item)
+            // 8. Ordered Numbered list (1. item, 2. item)
             val numberedMatch = NUMBERED_LIST_REGEX.matchEntire(line)
             if (numberedMatch != null) {
                 flushParagraph()
@@ -145,14 +186,16 @@ object MarkdownParser {
                 val number = numberedMatch.groupValues[2]
                 val content = numberedMatch.groupValues[3].trim()
                 nodes.add(MarkdownNode.NumberedItem(depth = indent / 2, number = number, parseInline(content)))
+                i++
                 continue
             }
 
-            // 8. Normal text line -> append to paragraph buffer
+            // 9. Normal text line -> append to paragraph buffer
             if (paragraphBuffer.isNotEmpty()) {
                 paragraphBuffer.append(" ")
             }
-            paragraphBuffer.append(line.trim())
+            paragraphBuffer.append(trimmed)
+            i++
         }
 
         if (inCodeFence) {
@@ -166,6 +209,7 @@ object MarkdownParser {
 
     /**
      * Parses inline spans (plain text, bold, italic, bold+italic, colored, inline code, links) within a string.
+     * Supports nested inline spans (e.g. inline code inside bold/italic/colors).
      */
     fun parseInline(text: String): List<MarkdownSpan> {
         if (text.isEmpty()) return emptyList()
@@ -200,20 +244,20 @@ object MarkdownParser {
 
             when {
                 code.isNotEmpty() -> spans.add(MarkdownSpan.InlineCode(code))
-                linkText.isNotEmpty() -> spans.add(MarkdownSpan.Link(linkText, linkUrl))
-                spanColor.isNotEmpty() -> spans.add(MarkdownSpan.Colored(spanText, spanColor))
-                fontColor.isNotEmpty() -> spans.add(MarkdownSpan.Colored(fontText, fontColor))
-                bText.isNotEmpty() -> spans.add(MarkdownSpan.Bold(bText))
-                strongText.isNotEmpty() -> spans.add(MarkdownSpan.Bold(strongText))
-                iText.isNotEmpty() -> spans.add(MarkdownSpan.Italic(iText))
-                emText.isNotEmpty() -> spans.add(MarkdownSpan.Italic(emText))
+                linkText.isNotEmpty() -> spans.add(MarkdownSpan.Link(linkText, linkUrl, parseChildrenIfPresent(linkText)))
+                spanColor.isNotEmpty() -> spans.add(MarkdownSpan.Colored(spanText, spanColor, parseChildrenIfPresent(spanText)))
+                fontColor.isNotEmpty() -> spans.add(MarkdownSpan.Colored(fontText, fontColor, parseChildrenIfPresent(fontText)))
+                bText.isNotEmpty() -> spans.add(MarkdownSpan.Bold(bText, parseChildrenIfPresent(bText)))
+                strongText.isNotEmpty() -> spans.add(MarkdownSpan.Bold(strongText, parseChildrenIfPresent(strongText)))
+                iText.isNotEmpty() -> spans.add(MarkdownSpan.Italic(iText, parseChildrenIfPresent(iText)))
+                emText.isNotEmpty() -> spans.add(MarkdownSpan.Italic(emText, parseChildrenIfPresent(emText)))
                 codeHtmlText.isNotEmpty() -> spans.add(MarkdownSpan.InlineCode(codeHtmlText))
-                boldItalic1.isNotEmpty() -> spans.add(MarkdownSpan.BoldItalic(boldItalic1))
-                boldItalic2.isNotEmpty() -> spans.add(MarkdownSpan.BoldItalic(boldItalic2))
-                bold1.isNotEmpty() -> spans.add(MarkdownSpan.Bold(bold1))
-                bold2.isNotEmpty() -> spans.add(MarkdownSpan.Bold(bold2))
-                italic1.isNotEmpty() -> spans.add(MarkdownSpan.Italic(italic1))
-                italic2.isNotEmpty() -> spans.add(MarkdownSpan.Italic(italic2))
+                boldItalic1.isNotEmpty() -> spans.add(MarkdownSpan.BoldItalic(boldItalic1, parseChildrenIfPresent(boldItalic1)))
+                boldItalic2.isNotEmpty() -> spans.add(MarkdownSpan.BoldItalic(boldItalic2, parseChildrenIfPresent(boldItalic2)))
+                bold1.isNotEmpty() -> spans.add(MarkdownSpan.Bold(bold1, parseChildrenIfPresent(bold1)))
+                bold2.isNotEmpty() -> spans.add(MarkdownSpan.Bold(bold2, parseChildrenIfPresent(bold2)))
+                italic1.isNotEmpty() -> spans.add(MarkdownSpan.Italic(italic1, parseChildrenIfPresent(italic1)))
+                italic2.isNotEmpty() -> spans.add(MarkdownSpan.Italic(italic2, parseChildrenIfPresent(italic2)))
             }
 
             lastIndex = match.range.last + 1
@@ -224,5 +268,51 @@ object MarkdownParser {
         }
 
         return spans
+    }
+
+    private fun parseChildrenIfPresent(raw: String): List<MarkdownSpan> {
+        if (!raw.contains("`") && !raw.contains("*") && !raw.contains("_") && !raw.contains("<") && !raw.contains("[")) {
+            return emptyList()
+        }
+        val children = parseInline(raw)
+        return if (children.size == 1 && children[0] is MarkdownSpan.Text) emptyList() else children
+    }
+
+    private fun isTableCandidate(line: String): Boolean {
+        val trimmed = line.trim()
+        return trimmed.contains("|") && !trimmed.startsWith("#") && !trimmed.startsWith("```") && !trimmed.startsWith("~~~")
+    }
+
+    private fun isTableDelimiterRow(line: String): Boolean {
+        val trimmed = line.trim()
+        if (!trimmed.contains("-") || !trimmed.contains("|")) return false
+        val cells = splitTableCells(trimmed)
+        if (cells.isEmpty()) return false
+        return cells.all { cell ->
+            TABLE_DELIM_CELL_REGEX.matches(cell.trim())
+        }
+    }
+
+    private fun splitTableCells(line: String): List<String> {
+        var str = line.trim()
+        if (str.startsWith("|")) str = str.substring(1)
+        if (str.endsWith("|") && !str.endsWith("\\|")) str = str.substring(0, str.length - 1)
+        return str.split(TABLE_PIPE_SPLIT).map { it.trim().replace("\\|", "|") }
+    }
+
+    private fun parseTableAlignments(delimiterLine: String, columnCount: Int): List<TableAlignment> {
+        val rawAlignments = splitTableCells(delimiterLine).map { cell ->
+            val c = cell.trim()
+            val leftColon = c.startsWith(":")
+            val rightColon = c.endsWith(":")
+            when {
+                leftColon && rightColon -> TableAlignment.CENTER
+                rightColon -> TableAlignment.RIGHT
+                else -> TableAlignment.LEFT
+            }
+        }
+        return List(columnCount) { idx ->
+            if (idx < rawAlignments.size) rawAlignments[idx] else TableAlignment.LEFT
+        }
     }
 }

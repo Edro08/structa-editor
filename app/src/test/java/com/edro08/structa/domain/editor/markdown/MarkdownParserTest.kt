@@ -40,6 +40,67 @@ class MarkdownParserTest {
     }
 
     @Test
+    fun parseNestedInlineCodeInsideBold() {
+        val text = "Haz clic en **`Realm settings`**."
+        val spans = MarkdownParser.parseInline(text)
+
+        assertEquals(3, spans.size)
+        assertEquals(MarkdownSpan.Text("Haz clic en "), spans[0])
+        val boldSpan = spans[1] as MarkdownSpan.Bold
+        assertEquals(1, boldSpan.children.size)
+        assertEquals(MarkdownSpan.InlineCode("Realm settings"), boldSpan.children[0])
+        assertEquals(MarkdownSpan.Text("."), spans[2])
+    }
+
+    @Test
+    fun parseNestedInlineCodeInsideBoldWithColon() {
+        val text = "* **`Disabled`:** La deteccion esta apagada."
+        val spans = MarkdownParser.parseInline(text)
+
+        assertEquals(3, spans.size)
+        assertEquals(MarkdownSpan.Text("* "), spans[0])
+        val boldSpan = spans[1] as MarkdownSpan.Bold
+        assertEquals(2, boldSpan.children.size)
+        assertEquals(MarkdownSpan.InlineCode("Disabled"), boldSpan.children[0])
+        assertEquals(MarkdownSpan.Text(":"), boldSpan.children[1])
+        assertEquals(MarkdownSpan.Text(" La deteccion esta apagada."), spans[2])
+    }
+
+    @Test
+    fun parseTable_headersAlignmentsAndRows() {
+        val md = """
+            | Parametro | Tipo | Descripcion |
+            | :--- | :---: | ---: |
+            | `id` | String | Identificador unico |
+            | `name` | String | Nombre de **usuario** |
+            | `enabled` | Boolean | Estado activo |
+        """.trimIndent()
+
+        val nodes = MarkdownParser.parse(md)
+        assertEquals(1, nodes.size)
+        assertTrue(nodes[0] is MarkdownNode.Table)
+
+        val table = nodes[0] as MarkdownNode.Table
+        assertEquals(3, table.headers.cells.size)
+        assertEquals("Parametro", table.headers.cells[0].spans[0].text)
+        assertEquals("Tipo", table.headers.cells[1].spans[0].text)
+        assertEquals("Descripcion", table.headers.cells[2].spans[0].text)
+
+        assertEquals(listOf(TableAlignment.LEFT, TableAlignment.CENTER, TableAlignment.RIGHT), table.alignments)
+
+        assertEquals(3, table.rows.size)
+        val row1 = table.rows[0]
+        assertEquals(MarkdownSpan.InlineCode("id"), row1.cells[0].spans[0])
+        assertEquals("String", row1.cells[1].spans[0].text)
+        assertEquals("Identificador unico", row1.cells[2].spans[0].text)
+
+        val row2 = table.rows[1]
+        assertEquals("String", row2.cells[1].spans[0].text)
+        assertEquals("Nombre de ", row2.cells[2].spans[0].text)
+        assertEquals(MarkdownSpan.Bold("usuario"), row2.cells[2].spans[1])
+    }
+
+    @Test
     fun parseCodeBlock_extractsLanguageAndContent() {
         val md = """
             # Codigo

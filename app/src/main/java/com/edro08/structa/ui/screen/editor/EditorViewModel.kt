@@ -26,6 +26,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.ensureActive
 import com.edro08.structa.domain.editor.cursor.TextOffset
+import com.edro08.structa.domain.editor.encoding.DocumentCharset
 import com.edro08.structa.domain.editor.cursor.TextRange as CoreTextRange
 import com.edro08.structa.ui.editor.input.EditorInputSession
 import com.edro08.structa.ui.editor.model.EditorViewState
@@ -36,7 +37,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 
 data class SaveSnapshot(val name: String, val content: String,
-    val document: EditorDocument, val revision: Long)
+    val document: EditorDocument, val revision: Long, val charset: DocumentCharset = DocumentCharset.DEFAULT)
 
 data class EditorTab(val documentId: DocumentId, val title: String, val dirty: Boolean, val active: Boolean)
 
@@ -44,6 +45,7 @@ data class EditorUiState(
     val entry: FileEntry? = null,
     val value: TextFieldValue = TextFieldValue(),
     val mode: FileMode = FileMode.TEXT,
+    val charset: DocumentCharset = DocumentCharset.DEFAULT,
     val isEditable: Boolean = false,
     val languageOverride: Language? = null,
     val inputSession: EditorInputSession? = null,
@@ -118,7 +120,7 @@ class EditorViewModel(
                     for (tab in saved.tabs) {
                         try {
                             val document = openDocument(fileSystem.stat(tab.id))
-                            register(document.entry, document.content, document.mode)
+                            register(document.entry, document.content, document.mode, document.charset)
                             val opened = documents.getValue(document.entry.id)
                             opened.inputSession!!.setSelection(tab.anchor.coerceIn(0, document.content.length),
                                 tab.active.coerceIn(0, document.content.length))
@@ -142,14 +144,14 @@ class EditorViewModel(
         }
     }
 
-    private fun register(entry: FileEntry, content: String, mode: FileMode) {
+    private fun register(entry: FileEntry, content: String, mode: FileMode, charset: DocumentCharset = DocumentCharset.DEFAULT) {
         val input = EditorInputSession(EditorEngine(EditorDocument(PieceTableBuffer(content), entry.id)))
         input.addListener { textChanged ->
             if (documents[entry.id]?.inputSession === input) syncInput(input, textChanged)
         }
         val view = EditorViewState().also { it.onScrollChanged = ::scheduleCheckpoint }
         documents[entry.id] = derive(EditorUiState(entry = entry, value = TextFieldValue(content),
-            mode = mode, inputSession = input, viewState = view))
+            mode = mode, charset = charset, inputSession = input, viewState = view, contentVersion = ++revision))
     }
 
     private fun scheduleCheckpoint() {
@@ -195,7 +197,7 @@ class EditorViewModel(
         scheduleCheckpoint()
     }
 
-    fun open(entry: FileEntry) {
+    fun open(entry: FileEntry, explicitCharset: DocumentCharset? = null) {
         if (restoring) return
         if (entry.id in documents) { selectDocument(entry.id); return }
         state.value.inputSession?.finishComposingText()
@@ -206,9 +208,9 @@ class EditorViewModel(
         mutableState.value = state.value.copy(loading = true, formatting = false, message = null)
         openJob = viewModelScope.launch {
             try {
-                val document = openDocument(entry)
+                val document = openDocument(entry, explicitCharset)
                 if (token != generation) return@launch
-                register(document.entry, document.content, document.mode)
+                register(document.entry, document.content, document.mode, document.charset)
                 selectDocument(document.entry.id)
             } catch (exception: CancellationException) {
                 throw exception
@@ -277,6 +279,30 @@ class EditorViewModel(
 
     fun setMode(mode: FileMode) {
         setLanguage(mode.syntaxLanguage())
+    }
+
+    fun setCharset(charset: DocumentCharset) {
+        val current = state.value
+        val entry = current.entry ?: return
+        val currentDoc = current.inputSession?.engine?.document
+        if (currentDoc != null && !currentDoc.dirty) {
+            documents.remove(entry.id)
+            open(entry, explicitCharset = charset)
+            showMessage("Codificación: ${charset.displayName}")
+        } else {
+            val updated = current.copy(charset = charset)
+            documents[entry.id] = updated
+            mutableState.value = updated.copy(tabs = tabs())
+            showMessage("Codificación para guardar: ${charset.displayName}")
+        }
+    }
+
+    fun autoDetectCharset() {
+        val current = state.value
+        val entry = current.entry ?: return
+        documents.remove(entry.id)
+        open(entry, explicitCharset = null)
+        showMessage("Detectando codificación automáticamente...")
     }
 
     fun setLanguage(language: Language) {
@@ -430,7 +456,7 @@ class EditorViewModel(
         val entry = current.entry ?: return null
         if (current.inputSession == null || current.pendingSave != null || current.saving) return null
         val document = current.inputSession.engine.document
-        val snapshot = SaveSnapshot(entry.name, current.value.text, document, document.revision)
+        val snapshot = SaveSnapshot(entry.name, current.value.text, document, document.revision, current.charset)
         mutableState.value = current.copy(pendingSave = snapshot)
         return snapshot
     }
@@ -510,7 +536,7 @@ class EditorViewModel(
         mutableState.value = state.value.copy(saving = true, message = null)
         viewModelScope.launch {
             try {
-                saveCopy(destination, snapshot.content)
+                saveCopy(destination, snapshot.content, snapshot.charset)
                 if (destination == snapshot.document.id) snapshot.document.markSaved(snapshot.revision)
                 savingDocument = null
                 val activeDirty = state.value.inputSession?.engine?.document?.dirty ?: false

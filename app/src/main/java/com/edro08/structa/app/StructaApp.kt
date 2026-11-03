@@ -403,7 +403,7 @@ fun StructaApp(openIntent: Intent? = null, onOpenIntentHandled: (Intent) -> Unit
 
                              showAccessoryBar = settingsState.showAccessoryBar,
 
-                             onExplore = { screen = Screen.BROWSER }, onLanguage = editor::setLanguage,
+                             onExplore = { screen = Screen.BROWSER }, onLanguage = editor::setLanguage, onCharset = editor::setCharset, onAutoDetectCharset = editor::autoDetectCharset,
 
                              onMessage = editor::showMessage,
 

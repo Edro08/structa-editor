@@ -34,6 +34,7 @@ import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Save
 import androidx.compose.material.icons.filled.SaveAs
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.Translate
 import androidx.compose.material.icons.filled.AutoFixHigh
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.*
@@ -56,6 +57,7 @@ import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import com.edro08.structa.R
 import com.edro08.structa.domain.document.DocumentId
+import com.edro08.structa.domain.editor.encoding.DocumentCharset
 import com.edro08.structa.domain.editor.command.*
 import com.edro08.structa.domain.editor.cursor.TextOffset
 import com.edro08.structa.domain.editor.cursor.TextRange
@@ -127,7 +129,7 @@ private fun actionName(action: EditorAction): String = when (action) {
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun EditorScreen(state: EditorUiState, onBack: () -> Unit, onExplore: () -> Unit,
-    onLanguage: (Language) -> Unit, onSearch: (String) -> Unit,
+    onLanguage: (Language) -> Unit, onCharset: (DocumentCharset) -> Unit = {}, onAutoDetectCharset: () -> Unit = {}, onSearch: (String) -> Unit,
     onFormat: () -> Unit, onUndo: () -> Unit, onRedo: () -> Unit, onLine: (Int) -> Unit, onSaveAs: (DocumentId) -> Unit = {},
     onMessage: (String) -> Unit,
     onSave: () -> Unit, onSelectDocument: (DocumentId) -> Unit, onCloseDocument: (DocumentId) -> Unit,
@@ -145,6 +147,7 @@ fun EditorScreen(state: EditorUiState, onBack: () -> Unit, onExplore: () -> Unit
     var showFileMenu by remember { mutableStateOf(false) }
     var showEditMenu by remember { mutableStateOf(false) }
     var showFormatMenu by remember { mutableStateOf(false) }
+    var showEncodingMenu by remember { mutableStateOf(false) }
     var showGoToLine by rememberSaveable { mutableStateOf(false) }
     var showSaveAsDialog by rememberSaveable { mutableStateOf(false) }
     var showOutline by rememberSaveable { mutableStateOf(false) }
@@ -214,7 +217,7 @@ fun EditorScreen(state: EditorUiState, onBack: () -> Unit, onExplore: () -> Unit
                     val modeLabel = if (state.isEditable) stringResource(R.string.editor_mode_edit)
                         else if (isMarkdown && renderMarkdown) stringResource(R.string.editor_mode_rendered)
                         else stringResource(R.string.editor_mode_view)
-                    Text(stringResource(R.string.editor_document_info, languageName(state.highlightLanguage()), formatBytes(entry.sizeBytes)) + " · " + modeLabel, maxLines = 1,
+                    Text(stringResource(R.string.editor_document_info, languageName(state.highlightLanguage()), formatBytes(entry.sizeBytes)) + " · " + state.charset.displayName + " · " + modeLabel, maxLines = 1,
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
@@ -334,6 +337,10 @@ fun EditorScreen(state: EditorUiState, onBack: () -> Unit, onExplore: () -> Unit
                               enabled = entry != null && !state.loading, submenu = true) {
                               showEditMenu = false; showFormatMenu = true
                           }
+                          EditorMenuOption("Codificación", Icons.Filled.Translate,
+                              enabled = entry != null && !state.loading, submenu = true) {
+                              showEditMenu = false; showEncodingMenu = true
+                          }
                           EditorMenuOption(stringResource(R.string.editor_word_wrap), Icons.Filled.Code,
                               enabled = entry != null && !state.loading,
                               checked = state.viewState.wordWrapMode == WordWrapMode.VIEWPORT) {
@@ -436,7 +443,7 @@ fun EditorScreen(state: EditorUiState, onBack: () -> Unit, onExplore: () -> Unit
                   }
                   state.inputSession?.let { input ->
                       if (isMarkdown && !state.isEditable && renderMarkdown) {
-                          val markdownText = remember(state.contentVersion) {
+                          val markdownText = remember(state.contentVersion, input.engine.document) {
                               val buf = input.engine.document.buffer
                               buf.getText(0, buf.length).toString()
                           }
@@ -624,6 +631,22 @@ fun EditorScreen(state: EditorUiState, onBack: () -> Unit, onExplore: () -> Unit
                 showFormatMenu = false
             },
             onDismiss = { showFormatMenu = false }
+        )
+    }
+    if (showEncodingMenu) {
+        EncodingSelectionDialog(
+            currentCharset = state.charset,
+            onSelect = { charset ->
+                state.inputSession?.finishComposingText()
+                onCharset(charset)
+                showEncodingMenu = false
+            },
+            onAutoDetect = {
+                state.inputSession?.finishComposingText()
+                onAutoDetectCharset()
+                showEncodingMenu = false
+            },
+            onDismiss = { showEncodingMenu = false }
         )
     }
     state.pendingClose?.let { id ->

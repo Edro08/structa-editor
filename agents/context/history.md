@@ -1,6 +1,58 @@
 # Historial de Structa
 
+## 2026-11-02 — Mejoras en Renderizador Markdown: Tablas GFM y Formatos Anidados
 
+- **Formato Anidado en Spans (MarkdownModel, MarkdownParser, MarkdownViewer)**:
+  - Se amplió MarkdownSpan (Bold, Italic, BoldItalic, Link, Colored) para admitir children: List<MarkdownSpan> = emptyList().
+  - El parser descompone recursivamente delimitadores internos dentro de bloques en negrita o cursiva (por ejemplo ** Realm settings **), evitando la fuga de backticks literales sin renderizar.
+  - En la UI (MarkdownViewer), la función ppendSpans procesa en cascada estilos heredados (parentFontWeight, parentFontStyle, allbackColor) y dibuja correctamente los badges de código (InlineCode) dentro de negritas y cursivas.
+- **Soporte Completo de Tablas GFM y Layout de Rejilla Unificado (MarkdownNode.Table, MarkdownTableLayout)**:
+  - Corrección de desalineación columnar: anteriormente, cada fila de la tabla renderizaba un Row independiente en Compose, lo que provocaba que columnas con celdas de longitudes variables se desfasaran horizontalmente entre filas (efecto escalonado).
+  - Implementación de MarkdownTableLayout con un Layout personalizado en Compose:
+    - Mide todas las celdas en bloque y sincroniza el ancho máximo de cada columna ( = \max_r(	ext{width}(r, c))$) y el alto de cada fila ( = \max_c(	ext{height}(r, c))$).
+    - Dibuja mediante drawBehind cuadrícula completa: líneas divisorias verticales continuas entre columnas, líneas divisorias horizontales entre filas, separador grueso de cabecera y rayado de cebra alternado.
+    - Distribución inteligente de ancho: si la tabla tiene pocas columnas y el ancho total es menor que la pantalla, se expande proporcionalmente hasta llenar la tarjeta; si excede la pantalla, habilita scroll horizontal fluido.
+    - Alineación estricta (izquierda, centro, derecha) sobre el ancho unificado de la columna.
+  - Modelo con TableRow, TableCell y alineaciones (TableAlignment.LEFT, CENTER, RIGHT).
+  - Parser robusto que detecta filas de encabezado, delimitadores con alineación sintáctica (:---, :---:, ---:) y filas de datos con celdas normalizadas y escape de pipes (\|).
+  - Componente visual MarkdownTableItem con diseño Pure OLED:
+    - Tarjeta contenedora con bordes sutiles DarkOutlineVariant y esquinas redondeadas (12.dp).
+    - Desplazamiento horizontal independiente (Modifier.horizontalScroll()) para preservar legibilidad en pantallas móviles sin cortar texto.
+    - Encabezado con elevación visual (DarkSurfaceRaised), tipografía destacada y separador DarkOutline.
+    - Rayado de cebra alternado (DarkSurface / transparente) y alineación configurable por columna.
+    - Soporte completo para renderizar formato enriquecido (código en línea, enlaces, negritas) dentro de cada celda.
+- **Verificación**:
+  - Pruebas unitarias de parser actualizadas y aprobadas (parseNestedInlineCodeInsideBold, parseTable_headersAlignmentsAndRows).
+  - Verificación visual en emulador Android en vivo comprobando ausencia de backticks en listas y desplazamiento fluido horizontal en tablas.
+
+## 2026-11-02 — Fase 17: Codificaciones de Texto (Charsets & Encodings)
+
+- **Motor de Detección y Transcodificación en Dominio Puro (`CharsetDetector`, `DocumentCharset`)**:
+  - Implementación en `domain/editor/encoding/` en Kotlin puro, sin dependencias de `android.*` o `androidx.*` de acuerdo con las especificaciones de arquitectura.
+  - Soporte para 9 juegos de caracteres: `UTF-8`, `UTF-8 con BOM`, `UTF-16 LE`, `UTF-16 BE`, `ANSI (Windows-1252)`, `ISO-8859-1 (Latin 1)`, `ASCII (7-bit)`, `IBM437 (MS-DOS OEM)` y `Windows-1250 (CE)`.
+  - Algoritmo de detección inteligente:
+    1. Inspección estricta de BOMs (`EF BB BF`, `FF FE`, `FE FF`).
+    2. Validación de secuencias de bytes UTF-8 válidas mediante decodificador estricto `StandardCharsets.UTF_8`.
+    3. Inspección de rango de bytes característicos de ANSI Windows-1252 (`0x80..0x9F`).
+    4. Fallback seguro a UTF-8/Windows-1252.
+  - Limpieza automática de firmas BOM en memoria (`\uFEFF`) y re-inyección al guardar según la codificación objetivo.
+- **Abstracción del Sistema de Archivos con Soporte de Codificación (`FileReader`, `FileWriter`, `DirectFileSystem`)**:
+  - Métodos `readWithCharset` y `writeWithCharset` en interfaces de filesystem con retrocompatibilidad.
+  - Soporte en casos de uso de aplicación: `OpenDocument` y `SaveDocumentCopy`.
+  - Documentos portan su metadato de codificación activa `charset: DocumentCharset`.
+- **Integración Reactiva en ViewModel (`EditorViewModel`)**:
+  - `setCharset(charset)`: Si el documento no tiene modificaciones pendientes, lo recarga desde disco con el nuevo charset; si está sucio, fija el charset de destino para la próxima operación de guardado.
+  - `autoDetectCharset()`: Recarga el archivo aplicando detección automática sin intervención del usuario.
+  - Soporte de guardado con la codificación seleccionada en `SaveSnapshot`.
+- **Experiencia de Usuario y Diálogo Pure OLED (`EncodingSelectionDialog`, `EditorScreen`)**:
+  - Opción `Codificación >` en el menú overflow de 3 puntos del editor junto a `Lenguaje`.
+  - Diálogo modal Pure OLED con diseño acorde a la guía de estilo de Structa:
+    - Tarjeta superior «Detectar automáticamente» con icono `AutoAwesome`.
+    - Tarjetas para cada codificación con insignias de color personalizadas (`UTF-8`, `BOM`, `16LE`, `16BE`, `ANSI`, `ISO`, `ASCII`, `DOS`, `CE`), descripción y selector circular de estado activo.
+  - Subtítulo de información del documento en la barra superior actualizado para incluir la codificación en tiempo real: `${lenguaje} · ${tamaño} · ${codificación} · ${modo}` (ej. `Markdown · 8 KB · UTF-8 · Lectura`).
+- **Verificación**:
+  - Suite de pruebas unitarias aprobada: 203 pruebas (`:app:testDebugUnitTest`), incluyendo tests exhaustivos de BOM, secuencias válidas/inválidas UTF-8 y codificación de salida en `CharsetDetectorTest`.
+  - Verificación en dispositivo Android en vivo: conmutación entre UTF-8 y ANSI / UTF-16, reflejo inmediato del texto decodificado y restauración automática mediante «Detectar automáticamente».
 
 ## 2026-11-02 — Fase 16: Vista Renderizada Markdown, Rediseño de Diálogos OLED y Selector de Guardar Como
 
