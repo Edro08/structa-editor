@@ -80,4 +80,7 @@
     <string name="editor_switch_to_view">Cambiar a modo lectura</string>
     <string name="editor_switch_to_edit">Habilitar edición</string>
     <string name="editor_toggle_editable">Alternar lectura/edición</string>
+    <string name="editor_mode_rendered">Renderizado</string>
+    <string name="editor_action_view_raw">Ver código fuente</string>
+    <string name="editor_action_view_rendered">Ver vista limpia</string>
 </resources>

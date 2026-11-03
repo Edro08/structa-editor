@@ -1,6 +1,6 @@
 # Fases de desarrollo de Structa
 
-Las fases **1–15** representan el desarrollo del motor base, arquitectura, ergonomía técnica y refinamiento móvil (completadas). Las fases subsiguientes definen la hoja de ruta técnica de Structa.
+Las fases **1–16** representan el desarrollo del motor base, arquitectura, ergonomía técnica, refinamiento móvil y visualización estructurada (completadas). Las fases subsiguientes definen la hoja de ruta técnica de Structa.
 
 ---
 
@@ -71,16 +71,14 @@ Las fases **1–15** representan el desarrollo del motor base, arquitectura, erg
 - Selección táctil fluida con menú flotante de copiado (`Copiar` y `Seleccionar todo`) y alternancia a edición con `Ctrl+E` o botón de lápiz.
 - Tema Pure OLED con negro absoluto (`#000000`), listas planas sin tarjetas en Inicio y Explorador, y botones en degradado Violeta a Índigo (`#7C3AED` a `#4F46E5`).
 
+### Fase 16 — Vista limpia renderizada de Markdown
+- Parser de Markdown en Kotlin puro (`MarkdownParser`) sin librerías externas ni WebViews: encabezados (H1–H6), listas, citas, código cercado y formato inline (negrita, cursiva, enlaces, código inline).
+- Visor `MarkdownViewer` en Jetpack Compose sobre Pure OLED con bloques de código copiables y selección libre de texto.
+- Apertura en vista limpia por defecto para `.md` en modo lectura con alternancia rápida a código fuente o edición (`Ctrl+E`).
+
 ---
 
 ## 🟡 Hoja de ruta técnica
-
-### Fase 16 — Vista limpia renderizada de Markdown (`.md`)
-*Objetivo: Lectura enriquecida de documentación técnica sin ruido de sintaxis.*
-- Renderizado de encabezados jerárquicos (H1 a H6), listas y separadores.
-- Bloques de código con fondo `DarkSurfaceRaised`, fuente monoespaciada y botón de copia rápida.
-- Citas (*blockquotes*) con barra lateral distintiva y formato inline (negrita, cursiva, enlaces, código inline).
-- Alternancia con un solo toque: vista limpia en lectura $\leftrightarrow$ editor Piece Table para modificar el texto.
 
 ### Fase 17 — Robustez móvil y persistencia
 *Objetivo: Protección contra pérdida de datos en el ciclo de vida de Android.*
@@ -96,6 +94,7 @@ Las fases **1–15** representan el desarrollo del motor base, arquitectura, erg
 | Base inicial (Fases 1–11) | 137 | 28 |
 | Ergonomía y búsqueda (Fases 12–14) | 189 | 54 |
 | Modo lectura y Pure OLED (Fase 15) | 189 | 54 |
+| Vista limpia Markdown (Fase 16) | 193 | 54 |
 
 Comandos de verificación en Windows PowerShell:
 ```powershell

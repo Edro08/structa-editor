@@ -1,6 +1,10 @@
 package com.edro08.structa.ui.screen.home
 
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.ui.graphics.Color
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -82,16 +86,71 @@ fun HomeScreen(state: HomeUiState, onOpenWorkspace: (DocumentId) -> Unit, onChoo
     }
 
     pendingRemoval?.let { entry ->
-        AlertDialog(onDismissRequest = { pendingRemoval = null },
-            title = { Text(stringResource(R.string.home_remove_title)) },
-            text = { Text(stringResource(R.string.home_remove_description, entry.name)) },
-            confirmButton = {
-                TextButton(onClick = { onRemoveFromHistory(entry.id); pendingRemoval = null }) {
-                    Text(stringResource(R.string.home_remove_confirm))
+        AlertDialog(
+            onDismissRequest = { pendingRemoval = null },
+            modifier = Modifier.border(
+                1.dp,
+                MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f),
+                RoundedCornerShape(24.dp)
+            ),
+            shape = RoundedCornerShape(24.dp),
+            containerColor = MaterialTheme.colorScheme.surface,
+            icon = {
+                Box(
+                    modifier = Modifier
+                        .size(44.dp)
+                        .background(StatusOrange.copy(alpha = 0.15f), RoundedCornerShape(12.dp)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Filled.History,
+                        contentDescription = null,
+                        tint = StatusOrange,
+                        modifier = Modifier.size(24.dp)
+                    )
                 }
-            }, dismissButton = {
-                TextButton(onClick = { pendingRemoval = null }) { Text(stringResource(R.string.common_cancel)) }
-            })
+            },
+            title = {
+                Text(
+                    text = stringResource(R.string.home_remove_title),
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+            },
+            text = {
+                Text(
+                    text = stringResource(R.string.home_remove_description, entry.name),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            },
+            confirmButton = {
+                Button(
+                    onClick = { onRemoveFromHistory(entry.id); pendingRemoval = null },
+                    shape = RoundedCornerShape(12.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = StatusOrange,
+                        contentColor = Color.Black
+                    )
+                ) {
+                    Text(
+                        text = stringResource(R.string.home_remove_confirm),
+                        fontWeight = FontWeight.SemiBold
+                    )
+                }
+            },
+            dismissButton = {
+                OutlinedButton(
+                    onClick = { pendingRemoval = null },
+                    shape = RoundedCornerShape(12.dp),
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.6f)),
+                    colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.onSurfaceVariant)
+                ) {
+                    Text(stringResource(R.string.common_cancel))
+                }
+            }
+        )
     }
 }
 

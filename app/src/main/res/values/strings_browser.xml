@@ -25,6 +25,9 @@
         <item quantity="one">Carpeta · %d elemento</item>
         <item quantity="other">Carpeta · %d elementos</item>
     </plurals>
+    <string name="browser_open">Abrir</string>
+    <string name="browser_expand">Expandir</string>
+    <string name="browser_collapse">Contraer</string>
     <string name="browser_open_named">Abrir %1$s</string>
     <string name="browser_expand_named">Expandir %1$s</string>
     <string name="browser_collapse_named">Contraer %1$s</string>

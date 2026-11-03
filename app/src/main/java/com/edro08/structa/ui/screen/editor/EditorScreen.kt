@@ -2,6 +2,7 @@ package com.edro08.structa.ui.screen.editor
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.lazy.LazyRow
@@ -24,6 +25,7 @@ import androidx.compose.material.icons.filled.Code
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.material.icons.filled.FindReplace
+import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.FolderOpen
 import androidx.compose.material.icons.filled.FormatListNumbered
 import androidx.compose.material.icons.filled.KeyboardArrowDown
@@ -43,6 +45,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.input.key.*
@@ -56,6 +59,9 @@ import com.edro08.structa.domain.document.DocumentId
 import com.edro08.structa.domain.editor.command.*
 import com.edro08.structa.domain.editor.cursor.TextOffset
 import com.edro08.structa.domain.editor.cursor.TextRange
+import com.edro08.structa.domain.editor.markdown.MarkdownParser
+import com.edro08.structa.ui.screen.editor.markdown.MarkdownViewer
+import androidx.compose.material.icons.filled.Description
 import com.edro08.structa.domain.editor.navigation.DocumentSymbol
 import com.edro08.structa.domain.editor.navigation.DocumentSymbolExtractor
 import kotlinx.coroutines.Dispatchers
@@ -74,6 +80,15 @@ import com.edro08.structa.ui.component.WorkspaceSelection
 import com.edro08.structa.ui.theme.ScreenStyle
 import com.edro08.structa.ui.theme.StructaLavender
 import com.edro08.structa.ui.theme.StructaPurple
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
+import com.edro08.structa.ui.theme.DarkTextSecondary
+import com.edro08.structa.ui.theme.StatusOrange
+import com.edro08.structa.ui.theme.StatusRed
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.material.icons.filled.WarningAmber
+import com.edro08.structa.ui.theme.StructaCyan
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 
@@ -113,7 +128,7 @@ private fun actionName(action: EditorAction): String = when (action) {
 @Composable
 fun EditorScreen(state: EditorUiState, onBack: () -> Unit, onExplore: () -> Unit,
     onLanguage: (Language) -> Unit, onSearch: (String) -> Unit,
-    onFormat: () -> Unit, onUndo: () -> Unit, onRedo: () -> Unit, onLine: (Int) -> Unit, onSaveAs: () -> Unit,
+    onFormat: () -> Unit, onUndo: () -> Unit, onRedo: () -> Unit, onLine: (Int) -> Unit, onSaveAs: (DocumentId) -> Unit = {},
     onMessage: (String) -> Unit,
     onSave: () -> Unit, onSelectDocument: (DocumentId) -> Unit, onCloseDocument: (DocumentId) -> Unit,
     onCancelClose: () -> Unit, onDiscardClose: () -> Unit, onSaveClose: () -> Unit,
@@ -131,9 +146,14 @@ fun EditorScreen(state: EditorUiState, onBack: () -> Unit, onExplore: () -> Unit
     var showEditMenu by remember { mutableStateOf(false) }
     var showFormatMenu by remember { mutableStateOf(false) }
     var showGoToLine by rememberSaveable { mutableStateOf(false) }
+    var showSaveAsDialog by rememberSaveable { mutableStateOf(false) }
     var showOutline by rememberSaveable { mutableStateOf(false) }
     var requestedLine by rememberSaveable { mutableStateOf("") }
     val entry = state.entry
+    val isMarkdown = remember(entry?.name) {
+        entry?.name?.let { it.endsWith(".md", ignoreCase = true) || it.endsWith(".markdown", ignoreCase = true) } == true
+    }
+    var renderMarkdown by rememberSaveable(entry?.id) { mutableStateOf(true) }
     val searchFocus = remember { FocusRequester() }
     val lineFocus = remember { FocusRequester() }
     val keyboardController = LocalSoftwareKeyboardController.current
@@ -191,7 +211,9 @@ fun EditorScreen(state: EditorUiState, onBack: () -> Unit, onExplore: () -> Unit
                   Text(if (state.tabs.size == 1 && state.dirty) stringResource(R.string.editor_dirty_title, title) else title,
                       maxLines = 1, overflow = TextOverflow.Ellipsis)
                 if (entry != null) {
-                    val modeLabel = if (state.isEditable) stringResource(R.string.editor_mode_edit) else stringResource(R.string.editor_mode_view)
+                    val modeLabel = if (state.isEditable) stringResource(R.string.editor_mode_edit)
+                        else if (isMarkdown && renderMarkdown) stringResource(R.string.editor_mode_rendered)
+                        else stringResource(R.string.editor_mode_view)
                     Text(stringResource(R.string.editor_document_info, languageName(state.highlightLanguage()), formatBytes(entry.sizeBytes)) + " · " + modeLabel, maxLines = 1,
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -200,6 +222,17 @@ fun EditorScreen(state: EditorUiState, onBack: () -> Unit, onExplore: () -> Unit
         }, onBack = onBack,
             actions = {
                 if (entry != null) {
+                    if (isMarkdown && !state.isEditable) {
+                        IconButton(
+                            onClick = { renderMarkdown = !renderMarkdown }
+                        ) {
+                            Icon(
+                                imageVector = if (renderMarkdown) Icons.Filled.Code else Icons.Filled.Description,
+                                contentDescription = if (renderMarkdown) stringResource(R.string.editor_action_view_raw) else stringResource(R.string.editor_action_view_rendered),
+                                tint = if (renderMarkdown) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
                     IconButton(
                         onClick = {
                             if (state.isEditable) keyboardController?.hide()
@@ -233,8 +266,8 @@ fun EditorScreen(state: EditorUiState, onBack: () -> Unit, onExplore: () -> Unit
                          EditorMenuOption(stringResource(R.string.editor_save), Icons.Filled.Save,
                              enabled = enabled(EditorAction.SAVE)) { showFileMenu = false; dispatch(EditorAction.SAVE) }
                           EditorMenuOption(stringResource(R.string.editor_save_as), Icons.Filled.SaveAs,
-                              enabled = enabled(EditorAction.SAVE)) {
-                              showFileMenu = false; state.inputSession?.finishComposingText(); onSaveAs()
+                              enabled = state.tabs.isNotEmpty() && !state.saving && state.pendingSave == null) {
+                              showFileMenu = false; state.inputSession?.finishComposingText(); showSaveAsDialog = true
                           }
                           EditorMenuOption(stringResource(R.string.editor_save_all), Icons.Filled.Save,
                               enabled = state.tabs.any { it.dirty } && !state.loading && !state.saving &&
@@ -402,12 +435,26 @@ fun EditorScreen(state: EditorUiState, onBack: () -> Unit, onExplore: () -> Unit
                       if (state.searching || state.replacing) LinearProgressIndicator(Modifier.fillMaxWidth())
                   }
                   state.inputSession?.let { input ->
-                      StructaEditor(input.engine, Modifier.weight(1f).fillMaxWidth(),
-                           contentVersion = state.contentVersion, cursorVisible = state.isEditable,
-                            editable = state.isEditable, inputSession = input, viewState = state.viewState,
-                             fileName = entry.name, language = state.highlightLanguage(), searchMatches = state.searchResult.matches,
-                             selectedMatch = state.selectedMatch, font = editorFont, fontSize = editorFontSize,
-                             onEditorAction = ::dispatch)
+                      if (isMarkdown && !state.isEditable && renderMarkdown) {
+                          val markdownText = remember(state.contentVersion) {
+                              val buf = input.engine.document.buffer
+                              buf.getText(0, buf.length).toString()
+                          }
+                          val markdownNodes = remember(markdownText) {
+                              MarkdownParser.parse(markdownText)
+                          }
+                          MarkdownViewer(
+                              nodes = markdownNodes,
+                              modifier = Modifier.weight(1f).fillMaxWidth()
+                          )
+                      } else {
+                          StructaEditor(input.engine, Modifier.weight(1f).fillMaxWidth(),
+                              contentVersion = state.contentVersion, cursorVisible = state.isEditable,
+                              editable = state.isEditable, inputSession = input, viewState = state.viewState,
+                              fileName = entry.name, language = state.highlightLanguage(), searchMatches = state.searchResult.matches,
+                              selectedMatch = state.selectedMatch, font = editorFont, fontSize = editorFontSize,
+                              onEditorAction = ::dispatch)
+                      }
 
                       if (showAccessoryBar && state.isEditable) {
                           val accessorySymbols = remember {
@@ -485,49 +532,182 @@ fun EditorScreen(state: EditorUiState, onBack: () -> Unit, onExplore: () -> Unit
         )
     }
     if (showGoToLine) {
-          AlertDialog(onDismissRequest = { showGoToLine = false },
-             shape = RoundedCornerShape(28.dp), containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
-             title = { Text(stringResource(R.string.dialog_editor_go_to_line)) },
+        AlertDialog(
+            onDismissRequest = { showGoToLine = false },
+            modifier = Modifier.border(
+                1.dp,
+                MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f),
+                RoundedCornerShape(24.dp)
+            ),
+            shape = RoundedCornerShape(24.dp),
+            containerColor = MaterialTheme.colorScheme.surface,
+            title = {
+                Text(
+                    text = stringResource(R.string.dialog_editor_go_to_line),
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+            },
             text = {
                 LaunchedEffect(Unit) { withFrameNanos { }; lineFocus.requestFocus() }
-                TextField(requestedLine, onValueChange = { requestedLine = it.filter(Char::isDigit) },
-                modifier = Modifier.focusRequester(lineFocus).onPreviewKeyEvent {
-                    if (it.type == KeyEventType.KeyDown && it.key == Key.Enter && requestedLine.toIntOrNull()?.let { n -> n > 0 } == true) {
-                        onLine(requestedLine.toInt()); showGoToLine = false; true
-                    } else if (it.type == KeyEventType.KeyDown && it.key == Key.Escape) { showGoToLine = false; true } else false
-                  }, singleLine = true, label = { Text(stringResource(R.string.dialog_editor_line_number)) },
-                     shape = RoundedCornerShape(12.dp)) },
-             confirmButton = { Button(enabled = requestedLine.toIntOrNull()?.let { it > 0 } == true,
-                  onClick = { requestedLine.toIntOrNull()?.let(onLine); showGoToLine = false }) { Text(stringResource(R.string.editor_accept)) } },
-             dismissButton = { TextButton(onClick = { showGoToLine = false }) { Text(stringResource(R.string.common_cancel)) } })
+                OutlinedTextField(
+                    value = requestedLine,
+                    onValueChange = { requestedLine = it.filter(Char::isDigit) },
+                    modifier = Modifier.fillMaxWidth().focusRequester(lineFocus).onPreviewKeyEvent {
+                        if (it.type == KeyEventType.KeyDown && it.key == Key.Enter && requestedLine.toIntOrNull()?.let { n -> n > 0 } == true) {
+                            onLine(requestedLine.toInt()); showGoToLine = false; true
+                        } else if (it.type == KeyEventType.KeyDown && it.key == Key.Escape) { showGoToLine = false; true } else false
+                    },
+                    singleLine = true,
+                    label = { Text(stringResource(R.string.dialog_editor_line_number)) },
+                    shape = RoundedCornerShape(14.dp),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedContainerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+                        unfocusedContainerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+                        focusedBorderColor = StructaPurple,
+                        unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant
+                    )
+                )
+            },
+            confirmButton = {
+                Button(
+                    enabled = requestedLine.toIntOrNull()?.let { it > 0 } == true,
+                    shape = RoundedCornerShape(12.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = StructaPurple, contentColor = Color.White),
+                    onClick = { requestedLine.toIntOrNull()?.let(onLine); showGoToLine = false }
+                ) {
+                    Text(stringResource(R.string.editor_accept), fontWeight = FontWeight.SemiBold)
+                }
+            },
+            dismissButton = {
+                OutlinedButton(
+                    onClick = { showGoToLine = false },
+                    shape = RoundedCornerShape(12.dp),
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.6f)),
+                    colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.onSurfaceVariant)
+                ) {
+                    Text(stringResource(R.string.common_cancel))
+                }
+            }
+        )
+    }
+    if (showSaveAsDialog && entry != null) {
+        val currentPath = entry.id.value
+        val parentFolder = remember(currentPath) {
+            val f = java.io.File(currentPath)
+            f.parent ?: android.os.Environment.getExternalStorageDirectory().absolutePath
+        }
+        SaveAsDialog(
+            currentName = entry.name,
+            initialParentPath = parentFolder,
+            onSave = { folder, newName ->
+                val dir = java.io.File(folder)
+                if (!dir.exists()) {
+                    dir.mkdirs()
+                }
+                val destinationFile = java.io.File(dir, newName)
+                onSaveAs(DocumentId(destinationFile.canonicalPath))
+                showSaveAsDialog = false
+            },
+            onDismiss = {
+                showSaveAsDialog = false
+            }
+        )
     }
     if (showFormatMenu) {
-          AlertDialog(onDismissRequest = { showFormatMenu = false },
-             shape = RoundedCornerShape(28.dp), containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
-             title = { Text(stringResource(R.string.editor_language_dialog)) },
-              text = { Column(Modifier.heightIn(max = 420.dp).verticalScroll(rememberScrollState())) {
-                  Text(stringResource(R.string.editor_language_hint), style = MaterialTheme.typography.bodySmall,
-                      color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(bottom = 8.dp))
-                  LanguageRegistry.languages.forEach { language ->
-                      WorkspaceSelection(languageName(language), state.highlightLanguage().id == language.id) {
-                          state.inputSession?.finishComposingText(); onLanguage(language); showFormatMenu = false
-                      }
-                 }
-            } }, confirmButton = {},
-             dismissButton = { TextButton(onClick = { showFormatMenu = false }) { Text(stringResource(R.string.common_cancel)) } })
+        LanguageSelectionDialog(
+            currentLanguage = state.highlightLanguage(),
+            onSelect = { language ->
+                state.inputSession?.finishComposingText()
+                onLanguage(language)
+                showFormatMenu = false
+            },
+            onDismiss = { showFormatMenu = false }
+        )
     }
     state.pendingClose?.let { id ->
         val title = state.tabs.firstOrNull { it.documentId == id }?.title.orEmpty()
-        AlertDialog(onDismissRequest = onCancelClose,
-             title = { Text(stringResource(R.string.editor_close_named, title)) },
-             text = { Text(stringResource(R.string.dialog_editor_unsaved_changes)) },
-             confirmButton = { TextButton(onClick = onSaveClose, enabled = !state.saving && state.pendingSave == null) { Text(stringResource(R.string.dialog_editor_save_close)) } },
-            dismissButton = {
-                Row {
-                     TextButton(onClick = onDiscardClose, enabled = !state.saving) { Text(stringResource(R.string.dialog_editor_discard)) }
-                     TextButton(onClick = onCancelClose) { Text(stringResource(R.string.common_cancel)) }
+        AlertDialog(
+            onDismissRequest = onCancelClose,
+            modifier = Modifier.border(
+                1.dp,
+                MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f),
+                RoundedCornerShape(24.dp)
+            ),
+            shape = RoundedCornerShape(24.dp),
+            containerColor = MaterialTheme.colorScheme.surface,
+            icon = {
+                Box(
+                    modifier = Modifier
+                        .size(44.dp)
+                        .background(StatusOrange.copy(alpha = 0.15f), RoundedCornerShape(12.dp)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Filled.WarningAmber,
+                        contentDescription = null,
+                        tint = StatusOrange,
+                        modifier = Modifier.size(24.dp)
+                    )
                 }
-            })
+            },
+            title = {
+                Text(
+                    text = stringResource(R.string.editor_close_named, title),
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+            },
+            text = {
+                Text(
+                    text = stringResource(R.string.dialog_editor_unsaved_changes),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            },
+            confirmButton = {
+                Button(
+                    onClick = onSaveClose,
+                    enabled = !state.saving && state.pendingSave == null,
+                    shape = RoundedCornerShape(12.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = StructaPurple,
+                        contentColor = Color.White
+                    )
+                ) {
+                    Text(
+                        text = stringResource(R.string.dialog_editor_save_close),
+                        fontWeight = FontWeight.SemiBold
+                    )
+                }
+            },
+            dismissButton = {
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    OutlinedButton(
+                        onClick = onDiscardClose,
+                        enabled = !state.saving,
+                        shape = RoundedCornerShape(12.dp),
+                        border = BorderStroke(1.dp, StatusRed.copy(alpha = 0.5f)),
+                        colors = ButtonDefaults.outlinedButtonColors(contentColor = StatusRed)
+                    ) {
+                        Text(
+                            text = stringResource(R.string.dialog_editor_discard),
+                            fontWeight = FontWeight.SemiBold
+                        )
+                    }
+                    OutlinedButton(
+                        onClick = onCancelClose,
+                        shape = RoundedCornerShape(12.dp),
+                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.6f)),
+                        colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.onSurfaceVariant)
+                    ) {
+                        Text(stringResource(R.string.common_cancel))
+                    }
+                }
+            }
+        )
     }
 }
 
@@ -694,4 +874,383 @@ private fun EditorEmptyStateView(onExplore: () -> Unit) {
             }
         }
     }
+}
+
+@Composable
+private fun LanguageSelectionDialog(
+    currentLanguage: Language,
+    onSelect: (Language) -> Unit,
+    onDismiss: () -> Unit
+) {
+    Dialog(
+        onDismissRequest = onDismiss,
+        properties = DialogProperties(usePlatformDefaultWidth = false)
+    ) {
+        Surface(
+            modifier = Modifier
+                .fillMaxWidth(0.92f)
+                .widthIn(max = 440.dp)
+                .border(
+                    width = 1.dp,
+                    color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f),
+                    shape = RoundedCornerShape(24.dp)
+                ),
+            shape = RoundedCornerShape(24.dp),
+            color = MaterialTheme.colorScheme.surface,
+            shadowElevation = 12.dp
+        ) {
+            Column(
+                modifier = Modifier.padding(20.dp)
+            ) {
+                // Header
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(38.dp)
+                                .background(
+                                    StructaPurple.copy(alpha = 0.15f),
+                                    RoundedCornerShape(10.dp)
+                                ),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Filled.Code,
+                                contentDescription = null,
+                                tint = StructaPurple,
+                                modifier = Modifier.size(22.dp)
+                            )
+                        }
+                        Column {
+                            Text(
+                                text = stringResource(R.string.editor_language_dialog),
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                            Text(
+                                text = stringResource(R.string.editor_language_hint),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                maxLines = 2,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                        }
+                    }
+                    IconButton(
+                        onClick = onDismiss,
+                        modifier = Modifier.size(32.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Filled.Close,
+                            contentDescription = stringResource(R.string.common_cancel),
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.size(18.dp)
+                        )
+                    }
+                }
+
+                Spacer(Modifier.height(16.dp))
+
+                // List of languages
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(max = 380.dp)
+                        .verticalScroll(rememberScrollState()),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    LanguageRegistry.languages.forEach { language ->
+                        val isSelected = currentLanguage.id == language.id
+                        LanguageOptionCard(
+                            language = language,
+                            isSelected = isSelected,
+                            onClick = { onSelect(language) }
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun LanguageOptionCard(
+    language: Language,
+    isSelected: Boolean,
+    onClick: () -> Unit
+) {
+    val (badgeText, badgeColor, description) = when (language.id) {
+        "markdown" -> Triple("MD", StructaLavender, "Documentación, notas y vista previa")
+        "json" -> Triple("{ }", StatusOrange, "Estructuras de datos · Formateo")
+        "yaml" -> Triple("YML", StructaCyan, "Configuración legible · Formateo")
+        "xml" -> Triple("< >", Color(0xFFFB923C), "Marcado y layouts · Formateo")
+        "go" -> Triple("GO", Color(0xFF00ADD8), "Código fuente Go · Sintaxis")
+        "text" -> Triple("TXT", DarkTextSecondary, "Texto plano sin resaltado")
+        else -> Triple(language.id.take(3).uppercase(), MaterialTheme.colorScheme.primary, "")
+    }
+
+    val backgroundColor = if (isSelected) {
+        StructaPurple.copy(alpha = 0.12f)
+    } else {
+        MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.35f)
+    }
+
+    val borderColor = if (isSelected) {
+        StructaPurple.copy(alpha = 0.65f)
+    } else {
+        MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.45f)
+    }
+
+    Surface(
+        onClick = onClick,
+        modifier = Modifier
+            .fillMaxWidth()
+            .border(1.dp, borderColor, RoundedCornerShape(14.dp)),
+        shape = RoundedCornerShape(14.dp),
+        color = backgroundColor
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 14.dp, vertical = 11.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(36.dp)
+                    .background(badgeColor.copy(alpha = 0.15f), RoundedCornerShape(8.dp)),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = badgeText,
+                    style = MaterialTheme.typography.labelMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = badgeColor
+                )
+            }
+
+            Spacer(Modifier.width(12.dp))
+
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = languageName(language),
+                    style = MaterialTheme.typography.bodyMedium,
+                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.SemiBold,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+                if (description.isNotEmpty()) {
+                    Text(
+                        text = description,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+
+            if (isSelected) {
+                Box(
+                    modifier = Modifier
+                        .size(22.dp)
+                        .background(StructaPurple, CircleShape),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Filled.Check,
+                        contentDescription = null,
+                        tint = Color.White,
+                        modifier = Modifier.size(14.dp)
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun SaveAsDialog(
+    currentName: String,
+    initialParentPath: String,
+    onSave: (folder: String, fileName: String) -> Unit,
+    onDismiss: () -> Unit
+) {
+    var destinationFolder by rememberSaveable(initialParentPath) { mutableStateOf(initialParentPath) }
+    var fileName by rememberSaveable(currentName) { mutableStateOf(currentName) }
+    var showFolderPicker by rememberSaveable { mutableStateOf(false) }
+    var errorMessage by remember { mutableStateOf<String?>(null) }
+
+    if (showFolderPicker) {
+        FolderPickerDialog(
+            initialPath = destinationFolder,
+            onSelectFolder = { chosen ->
+                destinationFolder = chosen
+                showFolderPicker = false
+            },
+            onDismiss = { showFolderPicker = false }
+        )
+    }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        modifier = Modifier.border(
+            1.dp,
+            MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f),
+            RoundedCornerShape(24.dp)
+        ),
+        shape = RoundedCornerShape(24.dp),
+        containerColor = MaterialTheme.colorScheme.surface,
+        icon = {
+            Box(
+                modifier = Modifier
+                    .size(44.dp)
+                    .background(StructaPurple.copy(alpha = 0.15f), RoundedCornerShape(12.dp)),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = Icons.Filled.SaveAs,
+                    contentDescription = null,
+                    tint = StructaPurple,
+                    modifier = Modifier.size(24.dp)
+                )
+            }
+        },
+        title = {
+            Text(
+                text = stringResource(R.string.editor_save_as),
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onSurface
+            )
+        },
+        text = {
+            Column(modifier = Modifier.fillMaxWidth()) {
+                // Section 1: Folder location
+                Text(
+                    text = "Carpeta de destino",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(bottom = 6.dp)
+                )
+
+                Surface(
+                    shape = RoundedCornerShape(14.dp),
+                    color = MaterialTheme.colorScheme.surfaceContainerHigh,
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable { showFolderPicker = true }
+                ) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            imageVector = Icons.Filled.Folder,
+                            contentDescription = null,
+                            tint = StructaLavender,
+                            modifier = Modifier.size(20.dp)
+                        )
+                        Spacer(Modifier.width(10.dp))
+                        Text(
+                            text = destinationFolder,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurface,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.weight(1f)
+                        )
+                        Spacer(Modifier.width(8.dp))
+                        FilledTonalButton(
+                            onClick = { showFolderPicker = true },
+                            shape = RoundedCornerShape(8.dp),
+                            contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
+                            colors = ButtonDefaults.filledTonalButtonColors(
+                                containerColor = StructaPurple.copy(alpha = 0.2f),
+                                contentColor = StructaLavender
+                            ),
+                            modifier = Modifier.height(30.dp)
+                        ) {
+                            Text("Cambiar", fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                        }
+                    }
+                }
+
+                Spacer(Modifier.height(14.dp))
+
+                // Section 2: File name
+                Text(
+                    text = "Nombre del archivo",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(bottom = 6.dp)
+                )
+
+                OutlinedTextField(
+                    value = fileName,
+                    onValueChange = {
+                        fileName = it
+                        errorMessage = null
+                    },
+                    placeholder = {
+                        Text(
+                            "ej. documento.txt",
+                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
+                        )
+                    },
+                    singleLine = true,
+                    shape = RoundedCornerShape(14.dp),
+                    isError = errorMessage != null,
+                    supportingText = errorMessage?.let { { Text(it, color = StatusRed) } },
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedContainerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+                        unfocusedContainerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+                        focusedBorderColor = StructaPurple,
+                        unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant
+                    ),
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = {
+                    val trimmedName = fileName.trim()
+                    val trimmedFolder = destinationFolder.trim()
+                    if (trimmedFolder.isBlank()) {
+                        errorMessage = "La carpeta de destino no puede estar vacía"
+                    } else if (trimmedName.isBlank() || trimmedName.contains('/') || trimmedName.contains('\\')) {
+                        errorMessage = "Nombre de archivo no válido"
+                    } else {
+                        onSave(trimmedFolder, trimmedName)
+                    }
+                },
+                enabled = fileName.isNotBlank() && destinationFolder.isNotBlank(),
+                shape = RoundedCornerShape(12.dp),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = StructaPurple,
+                    contentColor = Color.White
+                )
+            ) {
+                Text(stringResource(R.string.editor_save), fontWeight = FontWeight.SemiBold)
+            }
+        },
+        dismissButton = {
+            OutlinedButton(
+                onClick = onDismiss,
+                shape = RoundedCornerShape(12.dp),
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.6f)),
+                colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.onSurfaceVariant)
+            ) {
+                Text(stringResource(R.string.common_cancel))
+            }
+        }
+    )
 }
