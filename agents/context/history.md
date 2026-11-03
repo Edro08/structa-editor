@@ -6,6 +6,11 @@
   - Se amplió MarkdownSpan (Bold, Italic, BoldItalic, Link, Colored) para admitir children: List<MarkdownSpan> = emptyList().
   - El parser descompone recursivamente delimitadores internos dentro de bloques en negrita o cursiva (por ejemplo ** Realm settings **), evitando la fuga de backticks literales sin renderizar.
   - En la UI (MarkdownViewer), la función ppendSpans procesa en cascada estilos heredados (parentFontWeight, parentFontStyle, allbackColor) y dibuja correctamente los badges de código (InlineCode) dentro de negritas y cursivas.
+- **Refinamiento Semántico en Menú de Edición (EditorScreen, strings_editor.xml)**:
+  - Se actualizó la opción de ajuste de línea de «Ajuste de línea» a «Ajustar texto a la pantalla».
+  - Se sustituyó el icono genérico de código (Icons.Filled.Code) por el icono especializado Icons.AutoMirrored.Filled.WrapText para diferenciarlo con claridad de la opción «Lenguaje».
+  - Verificación visual en emulador Android confirmando ajuste en una sola línea y checkmark activo.
+
 - **Soporte Completo de Tablas GFM y Layout de Rejilla Unificado (MarkdownNode.Table, MarkdownTableLayout)**:
   - Corrección de desalineación columnar: anteriormente, cada fila de la tabla renderizaba un Row independiente en Compose, lo que provocaba que columnas con celdas de longitudes variables se desfasaran horizontalmente entre filas (efecto escalonado).
   - Implementación de MarkdownTableLayout con un Layout personalizado en Compose:

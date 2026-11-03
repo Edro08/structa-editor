@@ -72,7 +72,7 @@
         <item quantity="one">%d archivo indexado · hasta 100 resultados</item>
         <item quantity="other">%d archivos indexados · hasta 100 resultados</item>
     </plurals>
-    <string name="editor_word_wrap">Ajuste de línea</string>
+    <string name="editor_word_wrap">Ajustar texto a la pantalla</string>
     <string name="editor_mode_view">Lectura</string>
     <string name="editor_mode_edit">Edición</string>
     <string name="editor_action_edit">Editar</string>

@@ -16,6 +16,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.InsertDriveFile
 import androidx.compose.material.icons.automirrored.filled.Redo
 import androidx.compose.material.icons.automirrored.filled.Undo
+import androidx.compose.material.icons.automirrored.filled.WrapText
 import androidx.compose.material.icons.filled.ArrowDownward
 import androidx.compose.material.icons.filled.ArrowUpward
 import androidx.compose.material.icons.filled.Close
@@ -341,7 +342,7 @@ fun EditorScreen(state: EditorUiState, onBack: () -> Unit, onExplore: () -> Unit
                               enabled = entry != null && !state.loading, submenu = true) {
                               showEditMenu = false; showEncodingMenu = true
                           }
-                          EditorMenuOption(stringResource(R.string.editor_word_wrap), Icons.Filled.Code,
+                          EditorMenuOption(stringResource(R.string.editor_word_wrap), Icons.AutoMirrored.Filled.WrapText,
                               enabled = entry != null && !state.loading,
                               checked = state.viewState.wordWrapMode == WordWrapMode.VIEWPORT) {
                               showEditMenu = false
