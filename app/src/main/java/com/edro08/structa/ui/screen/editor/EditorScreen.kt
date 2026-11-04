@@ -558,50 +558,111 @@ fun EditorScreen(state: EditorUiState, onBack: () -> Unit, onExplore: () -> Unit
             shape = RoundedCornerShape(24.dp),
             containerColor = MaterialTheme.colorScheme.surface,
             title = {
-                Text(
-                    text = stringResource(R.string.dialog_editor_go_to_line),
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onSurface
-                )
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(40.dp)
+                                .background(StructaPurple.copy(alpha = 0.15f), RoundedCornerShape(12.dp))
+                                .border(1.dp, StructaPurple.copy(alpha = 0.3f), RoundedCornerShape(12.dp)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Filled.FormatListNumbered,
+                                contentDescription = null,
+                                tint = StructaLavender,
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
+                        Column {
+                            Text(
+                                text = stringResource(R.string.dialog_editor_go_to_line),
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                            Text(
+                                text = "Saltar al número de línea del archivo",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = DarkTextSecondary
+                            )
+                        }
+                    }
+                    IconButton(
+                        onClick = { showGoToLine = false },
+                        modifier = Modifier.size(32.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Filled.Close,
+                            contentDescription = stringResource(R.string.common_cancel),
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.size(18.dp)
+                        )
+                    }
+                }
             },
             text = {
                 LaunchedEffect(Unit) { withFrameNanos { }; lineFocus.requestFocus() }
-                OutlinedTextField(
-                    value = requestedLine,
-                    onValueChange = { requestedLine = it.filter(Char::isDigit) },
-                    modifier = Modifier.fillMaxWidth().focusRequester(lineFocus).onPreviewKeyEvent {
-                        if (it.type == KeyEventType.KeyDown && it.key == Key.Enter && requestedLine.toIntOrNull()?.let { n -> n > 0 } == true) {
-                            onLine(requestedLine.toInt()); showGoToLine = false; true
-                        } else if (it.type == KeyEventType.KeyDown && it.key == Key.Escape) { showGoToLine = false; true } else false
-                    },
-                    singleLine = true,
-                    label = { Text(stringResource(R.string.dialog_editor_line_number)) },
-                    shape = RoundedCornerShape(14.dp),
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedContainerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
-                        unfocusedContainerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
-                        focusedBorderColor = StructaPurple,
-                        unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant
+                Column(modifier = Modifier.fillMaxWidth()) {
+                    Text(
+                        text = stringResource(R.string.dialog_editor_line_number),
+                        style = MaterialTheme.typography.labelMedium,
+                        color = DarkTextSecondary,
+                        modifier = Modifier.padding(bottom = 6.dp)
                     )
-                )
+                    OutlinedTextField(
+                        value = requestedLine,
+                        onValueChange = { requestedLine = it.filter(Char::isDigit) },
+                        placeholder = {
+                            Text(
+                                "ej. 42",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = DarkTextSecondary.copy(alpha = 0.5f)
+                            )
+                        },
+                        modifier = Modifier.fillMaxWidth().focusRequester(lineFocus).onPreviewKeyEvent {
+                            if (it.type == KeyEventType.KeyDown && it.key == Key.Enter && requestedLine.toIntOrNull()?.let { n -> n > 0 } == true) {
+                                onLine(requestedLine.toInt()); showGoToLine = false; true
+                            } else if (it.type == KeyEventType.KeyDown && it.key == Key.Escape) { showGoToLine = false; true } else false
+                        },
+                        singleLine = true,
+                        shape = RoundedCornerShape(12.dp),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedContainerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+                            unfocusedContainerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+                            focusedBorderColor = StructaPurple,
+                            unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.45f)
+                        )
+                    )
+                }
             },
             confirmButton = {
                 Button(
                     enabled = requestedLine.toIntOrNull()?.let { it > 0 } == true,
                     shape = RoundedCornerShape(12.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = StructaPurple, contentColor = Color.White),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = StructaPurple,
+                        contentColor = Color.White,
+                        disabledContainerColor = StructaPurple.copy(alpha = 0.25f),
+                        disabledContentColor = Color.White.copy(alpha = 0.35f)
+                    ),
                     onClick = { requestedLine.toIntOrNull()?.let(onLine); showGoToLine = false }
                 ) {
                     Text(stringResource(R.string.editor_accept), fontWeight = FontWeight.SemiBold)
                 }
             },
             dismissButton = {
-                OutlinedButton(
+                TextButton(
                     onClick = { showGoToLine = false },
                     shape = RoundedCornerShape(12.dp),
-                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.6f)),
-                    colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.onSurfaceVariant)
+                    colors = ButtonDefaults.textButtonColors(contentColor = DarkTextSecondary)
                 ) {
                     Text(stringResource(R.string.common_cancel))
                 }
@@ -996,7 +1057,7 @@ private fun LanguageSelectionDialog(
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .heightIn(max = 380.dp)
+                        .heightIn(max = 480.dp)
                         .verticalScroll(rememberScrollState()),
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
@@ -1008,6 +1069,7 @@ private fun LanguageSelectionDialog(
                             onClick = { onSelect(language) }
                         )
                     }
+                    Spacer(Modifier.height(8.dp))
                 }
             }
         }
@@ -1020,14 +1082,14 @@ private fun LanguageOptionCard(
     isSelected: Boolean,
     onClick: () -> Unit
 ) {
-    val (badgeText, badgeColor, description) = when (language.id) {
-        "markdown" -> Triple("MD", StructaLavender, "Documentación, notas y vista previa")
-        "json" -> Triple("{ }", StatusOrange, "Estructuras de datos · Formateo")
-        "yaml" -> Triple("YML", StructaCyan, "Configuración legible · Formateo")
-        "xml" -> Triple("< >", Color(0xFFFB923C), "Marcado y layouts · Formateo")
-        "go" -> Triple("GO", Color(0xFF00ADD8), "Código fuente Go · Sintaxis")
-        "text" -> Triple("TXT", DarkTextSecondary, "Texto plano sin resaltado")
-        else -> Triple(language.id.take(3).uppercase(), MaterialTheme.colorScheme.primary, "")
+    val (badgeText, description) = when (language.id) {
+        "markdown" -> Pair("MD", "Documentación, notas y vista previa")
+        "json" -> Pair("{ }", "Estructuras de datos · Formateo")
+        "yaml" -> Pair("YML", "Configuración legible · Formateo")
+        "xml" -> Pair("< >", "Marcado y layouts · Formateo")
+        "go" -> Pair("GO", "Código fuente Go · Sintaxis")
+        "text" -> Pair("TXT", "Texto plano sin resaltado")
+        else -> Pair(language.id.take(3).uppercase(), "")
     }
 
     val backgroundColor = if (isSelected) {
@@ -1041,6 +1103,14 @@ private fun LanguageOptionCard(
     } else {
         MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.45f)
     }
+
+    val badgeBgColor = if (isSelected) {
+        StructaPurple.copy(alpha = 0.25f)
+    } else {
+        MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.5f)
+    }
+
+    val badgeTextColor = if (isSelected) StructaLavender else DarkTextSecondary
 
     Surface(
         onClick = onClick,
@@ -1059,14 +1129,19 @@ private fun LanguageOptionCard(
             Box(
                 modifier = Modifier
                     .size(36.dp)
-                    .background(badgeColor.copy(alpha = 0.15f), RoundedCornerShape(8.dp)),
+                    .background(badgeBgColor, RoundedCornerShape(8.dp))
+                    .border(
+                        1.dp,
+                        if (isSelected) StructaPurple.copy(alpha = 0.4f) else MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f),
+                        RoundedCornerShape(8.dp)
+                    ),
                 contentAlignment = Alignment.Center
             ) {
                 Text(
                     text = badgeText,
                     style = MaterialTheme.typography.labelMedium,
                     fontWeight = FontWeight.Bold,
-                    color = badgeColor
+                    color = badgeTextColor
                 )
             }
 
@@ -1268,18 +1343,19 @@ private fun SaveAsDialog(
                 shape = RoundedCornerShape(12.dp),
                 colors = ButtonDefaults.buttonColors(
                     containerColor = StructaPurple,
-                    contentColor = Color.White
+                    contentColor = Color.White,
+                    disabledContainerColor = StructaPurple.copy(alpha = 0.25f),
+                    disabledContentColor = Color.White.copy(alpha = 0.35f)
                 )
             ) {
                 Text(stringResource(R.string.editor_save), fontWeight = FontWeight.SemiBold)
             }
         },
         dismissButton = {
-            OutlinedButton(
+            TextButton(
                 onClick = onDismiss,
                 shape = RoundedCornerShape(12.dp),
-                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.6f)),
-                colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.onSurfaceVariant)
+                colors = ButtonDefaults.textButtonColors(contentColor = DarkTextSecondary)
             ) {
                 Text(stringResource(R.string.common_cancel))
             }

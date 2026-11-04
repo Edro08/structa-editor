@@ -14,6 +14,8 @@ import androidx.compose.material.icons.automirrored.filled.List
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.FindReplace
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.FilterList
+import com.edro08.structa.ui.theme.DarkTextSecondary
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -67,27 +69,35 @@ fun ProductivityPicker(
             ) {
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
                     Box(
                         modifier = Modifier
-                            .size(36.dp)
-                            .background(StructaPurple.copy(alpha = 0.15f), RoundedCornerShape(10.dp)),
+                            .size(40.dp)
+                            .background(StructaPurple.copy(alpha = 0.15f), RoundedCornerShape(12.dp))
+                            .border(1.dp, StructaPurple.copy(alpha = 0.3f), RoundedCornerShape(12.dp)),
                         contentAlignment = Alignment.Center
                     ) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.List,
                             contentDescription = null,
-                            tint = StructaPurple,
+                            tint = StructaLavender,
                             modifier = Modifier.size(20.dp)
                         )
                     }
-                    Text(
-                        title,
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onSurface
-                    )
+                    Column {
+                        Text(
+                            title,
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                        Text(
+                            if (title.contains("Índice", ignoreCase = true)) "Secciones y encabezados del documento" else "Filtrar opciones disponibles",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = DarkTextSecondary
+                        )
+                    }
                 }
                 IconButton(
                     onClick = onDismiss,
@@ -120,14 +130,28 @@ fun ProductivityPicker(
                 OutlinedTextField(
                     value = query,
                     onValueChange = onQuery,
-                    label = { Text(stringResource(R.string.editor_filter)) },
+                    placeholder = {
+                        Text(
+                            stringResource(R.string.editor_filter),
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = DarkTextSecondary.copy(alpha = 0.6f)
+                        )
+                    },
+                    leadingIcon = {
+                        Icon(
+                            imageVector = Icons.Filled.FilterList,
+                            contentDescription = null,
+                            tint = StructaLavender,
+                            modifier = Modifier.size(18.dp)
+                        )
+                    },
                     singleLine = true,
-                    shape = RoundedCornerShape(14.dp),
+                    shape = RoundedCornerShape(12.dp),
                     colors = OutlinedTextFieldDefaults.colors(
                         focusedContainerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
                         unfocusedContainerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
                         focusedBorderColor = StructaPurple,
-                        unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant
+                        unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.45f)
                     ),
                     modifier = Modifier.fillMaxWidth().focusRequester(focus)
                 )
@@ -180,16 +204,7 @@ fun ProductivityPicker(
             }
         },
         confirmButton = {},
-        dismissButton = {
-            OutlinedButton(
-                onClick = onDismiss,
-                shape = RoundedCornerShape(12.dp),
-                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.6f)),
-                colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.onSurfaceVariant)
-            ) {
-                Text(stringResource(R.string.common_close))
-            }
-        }
+        dismissButton = {}
     )
 }
 
@@ -261,43 +276,67 @@ fun GlobalSearchDialog(
             ) {
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
                     Box(
                         modifier = Modifier
-                            .size(36.dp)
-                            .background(StructaPurple.copy(alpha = 0.15f), RoundedCornerShape(10.dp)),
+                            .size(40.dp)
+                            .background(StructaPurple.copy(alpha = 0.15f), RoundedCornerShape(12.dp))
+                            .border(1.dp, StructaPurple.copy(alpha = 0.3f), RoundedCornerShape(12.dp)),
                         contentAlignment = Alignment.Center
                     ) {
                         Icon(
                             imageVector = Icons.Filled.Search,
                             contentDescription = null,
-                            tint = StructaPurple,
+                            tint = StructaLavender,
                             modifier = Modifier.size(20.dp)
                         )
                     }
-                    Text(
-                        "Buscar en Workspace",
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onSurface
-                    )
-                }
-                IconButton(
-                    onClick = { showReplaceBox = !showReplaceBox },
-                    modifier = Modifier
-                        .size(36.dp)
-                        .background(
-                            if (showReplaceBox) StructaPurple.copy(alpha = 0.2f) else Color.Transparent,
-                            RoundedCornerShape(8.dp)
+                    Column {
+                        Text(
+                            "Buscar en Workspace",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onSurface
                         )
+                        Text(
+                            "Buscar ocurrencias en el proyecto",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = DarkTextSecondary
+                        )
+                    }
+                }
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(4.dp)
                 ) {
-                    Icon(
-                        if (showReplaceBox) Icons.Filled.Search else Icons.Filled.FindReplace,
-                        contentDescription = "Alternar Reemplazar",
-                        tint = if (showReplaceBox) StructaLavender else MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.size(20.dp)
-                    )
+                    IconButton(
+                        onClick = { showReplaceBox = !showReplaceBox },
+                        modifier = Modifier
+                            .size(32.dp)
+                            .background(
+                                if (showReplaceBox) StructaPurple.copy(alpha = 0.2f) else Color.Transparent,
+                                RoundedCornerShape(8.dp)
+                            )
+                    ) {
+                        Icon(
+                            if (showReplaceBox) Icons.Filled.Search else Icons.Filled.FindReplace,
+                            contentDescription = "Alternar Reemplazar",
+                            tint = if (showReplaceBox) StructaLavender else MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.size(18.dp)
+                        )
+                    }
+                    IconButton(
+                        onClick = onDismiss,
+                        modifier = Modifier.size(32.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Filled.Close,
+                            contentDescription = stringResource(R.string.common_close),
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.size(18.dp)
+                        )
+                    }
                 }
             }
         },
@@ -310,21 +349,38 @@ fun GlobalSearchDialog(
                 OutlinedTextField(
                     value = state.query,
                     onValueChange = onQuery,
-                    label = { Text("Buscar en archivos...") },
+                    placeholder = {
+                        Text(
+                            "Buscar en archivos...",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = DarkTextSecondary.copy(alpha = 0.6f)
+                        )
+                    },
+                    leadingIcon = {
+                        Icon(
+                            imageVector = Icons.Filled.Search,
+                            contentDescription = null,
+                            tint = StructaLavender,
+                            modifier = Modifier.size(18.dp)
+                        )
+                    },
                     singleLine = true,
-                    shape = RoundedCornerShape(14.dp),
+                    shape = RoundedCornerShape(12.dp),
                     colors = OutlinedTextFieldDefaults.colors(
                         focusedContainerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
                         unfocusedContainerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
                         focusedBorderColor = StructaPurple,
-                        unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant
+                        unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.45f)
                     ),
-                    modifier = Modifier.fillMaxWidth().focusRequester(focus),
-                    trailingIcon = {
-                        IconButton(onClick = onSearch) {
-                            Icon(Icons.Filled.Search, contentDescription = "Buscar", tint = StructaPurple)
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .focusRequester(focus)
+                        .onPreviewKeyEvent {
+                            if (it.type == KeyEventType.KeyDown && (it.key == Key.Enter || it.key == Key.NumPadEnter)) {
+                                onSearch()
+                                true
+                            } else false
                         }
-                    }
                 )
 
                 if (showReplaceBox) {
@@ -336,14 +392,28 @@ fun GlobalSearchDialog(
                         OutlinedTextField(
                             value = state.replacement,
                             onValueChange = onReplacement,
-                            label = { Text("Reemplazar por...") },
+                            placeholder = {
+                                Text(
+                                    "Reemplazar por...",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = DarkTextSecondary.copy(alpha = 0.6f)
+                                )
+                            },
+                            leadingIcon = {
+                                Icon(
+                                    imageVector = Icons.Filled.FindReplace,
+                                    contentDescription = null,
+                                    tint = StructaLavender,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                            },
                             singleLine = true,
-                            shape = RoundedCornerShape(14.dp),
+                            shape = RoundedCornerShape(12.dp),
                             colors = OutlinedTextFieldDefaults.colors(
                                 focusedContainerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
                                 unfocusedContainerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
                                 focusedBorderColor = StructaPurple,
-                                unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant
+                                unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.45f)
                             ),
                             modifier = Modifier.weight(1f)
                         )
@@ -354,7 +424,9 @@ fun GlobalSearchDialog(
                             shape = RoundedCornerShape(12.dp),
                             colors = ButtonDefaults.buttonColors(
                                 containerColor = StructaPurple,
-                                contentColor = Color.White
+                                contentColor = Color.White,
+                                disabledContainerColor = StructaPurple.copy(alpha = 0.25f),
+                                disabledContentColor = Color.White.copy(alpha = 0.35f)
                             )
                         ) {
                             Text("Reemplazar", fontWeight = FontWeight.SemiBold)
@@ -362,7 +434,7 @@ fun GlobalSearchDialog(
                     }
                 }
 
-                Spacer(Modifier.height(8.dp))
+                Spacer(Modifier.height(10.dp))
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
@@ -371,7 +443,10 @@ fun GlobalSearchDialog(
                     Surface(
                         shape = RoundedCornerShape(8.dp),
                         color = if (state.caseSensitive) StructaPurple.copy(alpha = 0.15f) else Color.Transparent,
-                        border = BorderStroke(1.dp, if (state.caseSensitive) StructaPurple.copy(alpha = 0.5f) else MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)),
+                        border = BorderStroke(
+                            1.dp,
+                            if (state.caseSensitive) StructaPurple.copy(alpha = 0.5f) else MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f)
+                        ),
                         onClick = { onCaseSensitive(!state.caseSensitive) }
                     ) {
                         Row(
@@ -381,11 +456,15 @@ fun GlobalSearchDialog(
                             Checkbox(
                                 checked = state.caseSensitive,
                                 onCheckedChange = null,
-                                modifier = Modifier.size(24.dp),
+                                modifier = Modifier.size(20.dp),
                                 colors = CheckboxDefaults.colors(checkedColor = StructaPurple)
                             )
                             Spacer(Modifier.width(6.dp))
-                            Text("Coincidir mayúsculas", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurface)
+                            Text(
+                                "Coincidir mayúsculas",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
                         }
                     }
                     if (state.filesSearched > 0) {
@@ -404,41 +483,73 @@ fun GlobalSearchDialog(
                     }
                 }
 
-                if (state.searching || state.replacing) {
-                    LinearProgressIndicator(Modifier.fillMaxWidth().padding(vertical = 4.dp))
+                Spacer(Modifier.height(12.dp))
+
+                // Primary Action Button (Full width matching mockup)
+                Button(
+                    onClick = onSearch,
+                    enabled = state.query.isNotBlank() && !state.searching,
+                    modifier = Modifier.fillMaxWidth().height(42.dp),
+                    shape = RoundedCornerShape(12.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = StructaPurple,
+                        contentColor = Color.White,
+                        disabledContainerColor = StructaPurple.copy(alpha = 0.25f),
+                        disabledContentColor = Color.White.copy(alpha = 0.35f)
+                    )
+                ) {
+                    if (state.searching) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(16.dp),
+                            color = Color.White,
+                            strokeWidth = 2.dp
+                        )
+                        Spacer(Modifier.width(8.dp))
+                        Text("Buscando coincidencias...", fontWeight = FontWeight.SemiBold)
+                    } else {
+                        Icon(
+                            imageVector = Icons.Filled.Search,
+                            contentDescription = null,
+                            modifier = Modifier.size(16.dp)
+                        )
+                        Spacer(Modifier.width(8.dp))
+                        Text("Buscar coincidencias", fontWeight = FontWeight.SemiBold)
+                    }
                 }
 
                 state.message?.let {
-                    Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.secondary, modifier = Modifier.padding(vertical = 4.dp))
+                    Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.secondary, modifier = Modifier.padding(top = 8.dp))
                 }
 
-                Spacer(Modifier.height(8.dp))
-                LazyColumn(modifier = Modifier.heightIn(max = 280.dp), state = scroll) {
-                    itemsIndexed(state.matches) { _, match ->
-                        Surface(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(vertical = 3.dp)
-                                .border(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f), RoundedCornerShape(10.dp)),
-                            shape = RoundedCornerShape(10.dp),
-                            color = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.5f),
-                            onClick = { onSelectMatch(match) }
-                        ) {
-                            Column(Modifier.padding(horizontal = 12.dp, vertical = 8.dp)) {
-                                Text(
-                                    "${match.file.relativePath} : ${match.line + 1}",
-                                    style = MaterialTheme.typography.labelSmall,
-                                    fontWeight = FontWeight.SemiBold,
-                                    color = StructaCyan
-                                )
-                                Spacer(Modifier.height(2.dp))
-                                Text(
-                                    match.lineContent.trim(),
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurface,
-                                    maxLines = 2,
-                                    overflow = TextOverflow.Ellipsis
-                                )
+                if (state.matches.isNotEmpty()) {
+                    Spacer(Modifier.height(8.dp))
+                    LazyColumn(modifier = Modifier.heightIn(max = 260.dp), state = scroll) {
+                        itemsIndexed(state.matches) { _, match ->
+                            Surface(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(vertical = 3.dp)
+                                    .border(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f), RoundedCornerShape(10.dp)),
+                                shape = RoundedCornerShape(10.dp),
+                                color = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.5f),
+                                onClick = { onSelectMatch(match) }
+                            ) {
+                                Column(Modifier.padding(horizontal = 12.dp, vertical = 8.dp)) {
+                                    Text(
+                                        "${match.file.relativePath} : ${match.line + 1}",
+                                        style = MaterialTheme.typography.labelSmall,
+                                        fontWeight = FontWeight.SemiBold,
+                                        color = StructaCyan
+                                    )
+                                    Spacer(Modifier.height(2.dp))
+                                    Text(
+                                        match.lineContent.trim(),
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurface,
+                                        maxLines = 2,
+                                        overflow = TextOverflow.Ellipsis
+                                    )
+                                }
                             }
                         }
                     }
@@ -446,15 +557,6 @@ fun GlobalSearchDialog(
             }
         },
         confirmButton = {},
-        dismissButton = {
-            OutlinedButton(
-                onClick = onDismiss,
-                shape = RoundedCornerShape(12.dp),
-                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.6f)),
-                colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.onSurfaceVariant)
-            ) {
-                Text(stringResource(R.string.common_close))
-            }
-        }
+        dismissButton = {}
     )
 }

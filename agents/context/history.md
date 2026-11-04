@@ -1,5 +1,28 @@
 # Historial de Structa
 
+## 2026-11-03 — Estandarización del Sistema de Diálogos y Modales Visuales
+
+- **Unificación de Jerarquía de Acciones y Botones**:
+  - **Botón Primario**: Formato unificado `Button` con esquinas redondeadas (`12.dp`), fondo `StructaPurple` (o `StatusRed` en borrado destructivo), texto blanco semi-negrita, y estados deshabilitados explícitos con `StructaPurple.copy(alpha = 0.25f)` y texto al 35% de opacidad, eliminando el gris genérico deslavado de Material 3.
+  - **Botón Secundario / Cancelar**: Estandarizado a `TextButton` con color `DarkTextSecondary`, erradicando los `OutlinedButton` que competían visualmente con el botón primario.
+- **Limpieza de Espacio Vertical en Modales de Navegación y Búsqueda**:
+  - `ProductivityPicker` (Índice de contenido / Outline): Removido el botón redundante inferior «Cerrar», maximizando la altura útil para el listado de secciones y títulos; retiene el botón `X` (`18.dp`) en la cabecera.
+  - `GlobalSearchDialog` (Buscar en Workspace): Incorporado botón de cierre `X` en la fila superior de cabecera junto al alternador de búsqueda/reemplazo; eliminado el botón inferior «Cerrar». Estandarizado el botón «Reemplazar» con estilos deshabilitados violeta consistentes.
+- **Eliminación del Esquema de Colores Arcoíris en Badges**:
+  - `LanguageSelectionDialog` (`LanguageOptionCard`): Sustituidos los colores dispersos por extensión (naranjas, celestes, amarillos) por badges monocromáticos sobrios con contenedor slate (`MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.5f)` o `StructaPurple.copy(alpha = 0.25f)` al seleccionarse), borde fino al 40% y tipografía en `DarkTextSecondary` / `StructaLavender`. Checkmark circular violeta para el elemento activo.
+  - `EncodingSelectionDialog` (`EncodingOptionCard`): Badges unificados con contenedor sobrio y texto uniforme (`DarkTextSecondary` / `StructaLavender`), erradicando las etiquetas de colores heterogéneos (BOM, 16LE, 16BE, ANSI, DOS).
+- **Estandarización de Diálogos de Archivo y Selector de Carpetas**:
+  - `BrowserScreen`: Header horizontal con badge, título y subtítulo; campo sin notch superior y con placeholder limpio; botón «Confirmar» con colores deshabilitados violeta sutil y botón «Cancelar» con `TextButton(DarkTextSecondary)`.
+  - `SaveAsDialog` & `GoToLineDialog` (`EditorScreen`): Botones de confirmación violeta con estado deshabilitado estilizado y botón «Cancelar» en `TextButton`.
+  - `FolderPickerDialog`: Corrección de tonalidad azulada/morada en el contenedor removiendo `tonalElevation` artificial (`color = surface, tonalElevation = 0.dp`); eliminación de cyan fosforescente en el icono y modal de nueva carpeta sustituyéndolo por `StructaLavender` y `StructaPurple`; estandarización del botón «Cancelar» en `TextButton` y botón primario «Usar esta carpeta» (`StructaPurple`).
+  - `EncodingSelectionDialog`: Supresión del tinte artificial de superficie (`color = surface, tonalElevation = 0.dp`); armonización de la tarjeta «Detectar automáticamente» con fondo neutral y badge lavanda sobrio, evitando conflicto visual con la opción seleccionada.
+- **Ajuste de Alturas y Márgenes en Listas Desplazables**:
+  - `LanguageSelectionDialog`: Ampliada la altura máxima a `480.dp` con `Spacer` inferior de `8.dp`, permitiendo visualizar todos los elementos (incluyendo «Go») íntegramente con sus 4 esquinas redondeadas sin recortes, preservando el deslizamiento fluido con `verticalScroll` para futuras extensiones.
+  - `EncodingSelectionDialog`: Superficie ajustada a `0.88f` con `Spacer` inferior de `16.dp`, asegurando que el último elemento («IBM437» y «Windows-1250») cuente con separación visual respecto al borde curvo del diálogo y se desplace con total holgura.
+- **Verificación**:
+  - 221 pruebas unitarias JVM (`:app:testDebugUnitTest`) ejecutadas y aprobadas.
+  - Verificación visual en vivo en emulador Android (`Pixel 9 Pro` / API 35) con capturas de pantalla de todos los diálogos (`screen_workspace_search_v2.png`, `screen_workspace_search_results.png`, `screen_new_file_v2.png`, `screen_outline_v2.png`, `screen_language_v3.png`, `screen_encoding_v3.png`, `screen_encoding_scrolled.png`, `screen_folder_picker_v2.png`).
+
 ## 2026-11-03 — Fase 18: Robustez Móvil y Persistencia (Draft Crash Recovery)
 
 - **Arquitectura de Dominio Desacoplada (`DocumentDraft`, `DraftRepository`)**:

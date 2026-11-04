@@ -51,15 +51,15 @@ fun EncodingSelectionDialog(
         Surface(
             modifier = Modifier
                 .fillMaxWidth(0.92f)
-                .fillMaxHeight(0.85f)
+                .fillMaxHeight(0.88f)
                 .border(
                     1.dp,
-                    DarkOutlineVariant.copy(alpha = 0.5f),
+                    MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f),
                     RoundedCornerShape(24.dp)
                 ),
             shape = RoundedCornerShape(24.dp),
-            color = DarkSurface,
-            tonalElevation = 6.dp
+            color = MaterialTheme.colorScheme.surface,
+            tonalElevation = 0.dp
         ) {
             Column(
                 modifier = Modifier
@@ -149,6 +149,7 @@ fun EncodingSelectionDialog(
                             onClick = { onSelect(charset) }
                         )
                     }
+                    Spacer(Modifier.height(16.dp))
                 }
             }
         }
@@ -165,11 +166,11 @@ private fun AutoDetectOptionCard(
             .fillMaxWidth()
             .border(
                 1.dp,
-                StructaPurple.copy(alpha = 0.45f),
+                MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.45f),
                 RoundedCornerShape(14.dp)
             ),
         shape = RoundedCornerShape(14.dp),
-        color = StructaPurple.copy(alpha = 0.08f)
+        color = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.35f)
     ) {
         Row(
             modifier = Modifier
@@ -180,7 +181,12 @@ private fun AutoDetectOptionCard(
             Box(
                 modifier = Modifier
                     .size(36.dp)
-                    .background(StructaPurple.copy(alpha = 0.2f), RoundedCornerShape(8.dp)),
+                    .background(MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.5f), RoundedCornerShape(8.dp))
+                    .border(
+                        1.dp,
+                        MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f),
+                        RoundedCornerShape(8.dp)
+                    ),
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
@@ -197,8 +203,8 @@ private fun AutoDetectOptionCard(
                 Text(
                     text = "Detectar automáticamente",
                     style = MaterialTheme.typography.bodyMedium,
-                    fontWeight = FontWeight.Bold,
-                    color = StructaLavender
+                    fontWeight = FontWeight.SemiBold,
+                    color = MaterialTheme.colorScheme.onSurface
                 )
                 Text(
                     text = "Analiza por BOM o secuencias UTF-8 (fallback: UTF-8)",
@@ -216,16 +222,16 @@ private fun EncodingOptionCard(
     isSelected: Boolean,
     onClick: () -> Unit
 ) {
-    val (badgeText, badgeColor, description) = when (charset) {
-        DocumentCharset.UTF_8 -> Triple("UTF-8", StructaLavender, "Estándar Unicode universal · Predeterminado")
-        DocumentCharset.UTF_8_BOM -> Triple("BOM", StructaCyan, "UTF-8 con firma Byte Order Mark")
-        DocumentCharset.UTF_16_LE -> Triple("16LE", Color(0xFF38BDF8), "Unicode Little Endian · Windows / .NET")
-        DocumentCharset.UTF_16_BE -> Triple("16BE", Color(0xFF818CF8), "Unicode Big Endian · Java / Redes")
-        DocumentCharset.WINDOWS_1252 -> Triple("ANSI", StatusOrange, "ANSI Windows Europa Occidental / CP1252")
-        DocumentCharset.ISO_8859_1 -> Triple("ISO", Color(0xFFFBBF24), "Europa Occidental estándar ISO Latin 1")
-        DocumentCharset.US_ASCII -> Triple("ASCII", DarkTextSecondary, "ASCII básico de 7 bits en inglés")
-        DocumentCharset.IBM_437 -> Triple("DOS", Color(0xFFA78BFA), "Codepage clásico de MS-DOS / PC OEM")
-        DocumentCharset.WINDOWS_1250 -> Triple("CE", Color(0xFF34D399), "Europa Central y del Este / CP1250")
+    val (badgeText, description) = when (charset) {
+        DocumentCharset.UTF_8 -> Pair("UTF-8", "Estándar Unicode universal · Predeterminado")
+        DocumentCharset.UTF_8_BOM -> Pair("BOM", "UTF-8 con firma Byte Order Mark")
+        DocumentCharset.UTF_16_LE -> Pair("16LE", "Unicode Little Endian · Windows / .NET")
+        DocumentCharset.UTF_16_BE -> Pair("16BE", "Unicode Big Endian · Java / Redes")
+        DocumentCharset.WINDOWS_1252 -> Pair("ANSI", "ANSI Windows Europa Occidental / CP1252")
+        DocumentCharset.ISO_8859_1 -> Pair("ISO", "Europa Occidental estándar ISO Latin 1")
+        DocumentCharset.US_ASCII -> Pair("ASCII", "ASCII básico de 7 bits en inglés")
+        DocumentCharset.IBM_437 -> Pair("DOS", "Codepage clásico de MS-DOS / PC OEM")
+        DocumentCharset.WINDOWS_1250 -> Pair("CE", "Europa Central y del Este / CP1250")
     }
 
     val backgroundColor = if (isSelected) {
@@ -239,6 +245,14 @@ private fun EncodingOptionCard(
     } else {
         MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.45f)
     }
+
+    val badgeBgColor = if (isSelected) {
+        StructaPurple.copy(alpha = 0.25f)
+    } else {
+        MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.5f)
+    }
+
+    val badgeTextColor = if (isSelected) StructaLavender else DarkTextSecondary
 
     Surface(
         onClick = onClick,
@@ -257,14 +271,19 @@ private fun EncodingOptionCard(
             Box(
                 modifier = Modifier
                     .size(36.dp)
-                    .background(badgeColor.copy(alpha = 0.15f), RoundedCornerShape(8.dp)),
+                    .background(badgeBgColor, RoundedCornerShape(8.dp))
+                    .border(
+                        1.dp,
+                        if (isSelected) StructaPurple.copy(alpha = 0.4f) else DarkOutlineVariant.copy(alpha = 0.4f),
+                        RoundedCornerShape(8.dp)
+                    ),
                 contentAlignment = Alignment.Center
             ) {
                 Text(
                     text = badgeText,
                     style = MaterialTheme.typography.labelSmall,
                     fontWeight = FontWeight.Bold,
-                    color = badgeColor
+                    color = badgeTextColor
                 )
             }
 

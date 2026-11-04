@@ -75,6 +75,7 @@ import com.edro08.structa.ui.theme.StructaSizes
 import com.edro08.structa.ui.theme.StructaLavender
 
 import com.edro08.structa.ui.theme.StructaPurple
+import com.edro08.structa.ui.theme.DarkTextSecondary
 import com.edro08.structa.ui.theme.StatusRed
 
 import com.edro08.structa.ui.theme.structaColors
@@ -151,33 +152,66 @@ fun BrowserScreen(
             ),
             shape = RoundedCornerShape(24.dp),
             containerColor = MaterialTheme.colorScheme.surface,
-            icon = {
-                Box(
-                    modifier = Modifier
-                        .size(44.dp)
-                        .background(dialogIcon.second.copy(alpha = 0.15f), RoundedCornerShape(12.dp)),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        imageVector = dialogIcon.first,
-                        contentDescription = null,
-                        tint = dialogIcon.second,
-                        modifier = Modifier.size(24.dp)
-                    )
-                }
-            },
             title = {
-                Text(
-                    text = stringResource(when (action!!) {
-                        BrowserAction.NEW_FILE -> R.string.browser_new_file
-                        BrowserAction.NEW_FOLDER -> R.string.browser_new_folder
-                        BrowserAction.RENAME -> R.string.browser_rename
-                        BrowserAction.DELETE -> R.string.browser_delete
-                    }),
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onSurface
-                )
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(40.dp)
+                                .background(dialogIcon.second.copy(alpha = 0.15f), RoundedCornerShape(12.dp))
+                                .border(1.dp, dialogIcon.second.copy(alpha = 0.3f), RoundedCornerShape(12.dp)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = dialogIcon.first,
+                                contentDescription = null,
+                                tint = dialogIcon.second,
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
+                        Column {
+                            Text(
+                                text = stringResource(when (action!!) {
+                                    BrowserAction.NEW_FILE -> R.string.browser_new_file
+                                    BrowserAction.NEW_FOLDER -> R.string.browser_new_folder
+                                    BrowserAction.RENAME -> R.string.browser_rename
+                                    BrowserAction.DELETE -> R.string.browser_delete
+                                }),
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                            Text(
+                                text = when (action!!) {
+                                    BrowserAction.NEW_FILE -> "Crear documento en el workspace"
+                                    BrowserAction.NEW_FOLDER -> "Crear nueva carpeta en la ruta"
+                                    BrowserAction.RENAME -> "Modificar el nombre actual"
+                                    BrowserAction.DELETE -> "Acción irreversible de borrado"
+                                },
+                                style = MaterialTheme.typography.bodySmall,
+                                color = DarkTextSecondary
+                            )
+                        }
+                    }
+                    IconButton(
+                        onClick = { action = null },
+                        modifier = Modifier.size(32.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Filled.Close,
+                            contentDescription = stringResource(R.string.common_cancel),
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.size(18.dp)
+                        )
+                    }
+                }
             },
             text = {
                 if (isDelete) {
@@ -187,20 +221,34 @@ fun BrowserScreen(
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 } else {
-                    OutlinedTextField(
-                        value = name,
-                        onValueChange = { name = it },
-                        singleLine = true,
-                        label = { Text(stringResource(R.string.browser_name)) },
-                        shape = RoundedCornerShape(14.dp),
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedContainerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
-                            unfocusedContainerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
-                            focusedBorderColor = StructaPurple,
-                            unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant
-                        ),
-                        modifier = Modifier.fillMaxWidth()
-                    )
+                    Column(modifier = Modifier.fillMaxWidth()) {
+                        Text(
+                            text = if (action == BrowserAction.NEW_FOLDER) "Nombre de la carpeta" else "Nombre del archivo",
+                            style = MaterialTheme.typography.labelMedium,
+                            color = DarkTextSecondary,
+                            modifier = Modifier.padding(bottom = 6.dp)
+                        )
+                        OutlinedTextField(
+                            value = name,
+                            onValueChange = { name = it },
+                            placeholder = {
+                                Text(
+                                    if (action == BrowserAction.NEW_FOLDER) "ej. nueva-carpeta" else "ej. script.go",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = DarkTextSecondary.copy(alpha = 0.5f)
+                                )
+                            },
+                            singleLine = true,
+                            shape = RoundedCornerShape(12.dp),
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedContainerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+                                unfocusedContainerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+                                focusedBorderColor = StructaPurple,
+                                unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.45f)
+                            ),
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                    }
                 }
             },
             confirmButton = {
@@ -209,7 +257,9 @@ fun BrowserScreen(
                     shape = RoundedCornerShape(12.dp),
                     colors = ButtonDefaults.buttonColors(
                         containerColor = if (isDelete) StatusRed else StructaPurple,
-                        contentColor = Color.White
+                        contentColor = Color.White,
+                        disabledContainerColor = if (isDelete) StatusRed.copy(alpha = 0.25f) else StructaPurple.copy(alpha = 0.25f),
+                        disabledContentColor = Color.White.copy(alpha = 0.35f)
                     ),
                     onClick = {
                         when (action) {
@@ -228,11 +278,10 @@ fun BrowserScreen(
                 }
             },
             dismissButton = {
-                OutlinedButton(
+                TextButton(
                     onClick = { action = null },
                     shape = RoundedCornerShape(12.dp),
-                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.6f)),
-                    colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.onSurfaceVariant)
+                    colors = ButtonDefaults.textButtonColors(contentColor = DarkTextSecondary)
                 ) {
                     Text(stringResource(R.string.common_cancel))
                 }

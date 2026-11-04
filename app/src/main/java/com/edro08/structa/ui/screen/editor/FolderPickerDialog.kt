@@ -138,10 +138,10 @@ fun FolderPickerDialog(
             modifier = Modifier
                 .fillMaxWidth(0.94f)
                 .fillMaxHeight(0.82f)
-                .border(1.dp, DarkOutlineVariant.copy(alpha = 0.5f), RoundedCornerShape(24.dp)),
+                .border(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f), RoundedCornerShape(24.dp)),
             shape = RoundedCornerShape(24.dp),
-            color = DarkSurface,
-            tonalElevation = 8.dp
+            color = MaterialTheme.colorScheme.surface,
+            tonalElevation = 0.dp
         ) {
             Column(
                 modifier = Modifier
@@ -158,7 +158,8 @@ fun FolderPickerDialog(
                         Box(
                             modifier = Modifier
                                 .size(40.dp)
-                                .background(StructaPurple.copy(alpha = 0.15f), RoundedCornerShape(10.dp)),
+                                .background(StructaPurple.copy(alpha = 0.15f), RoundedCornerShape(12.dp))
+                                .border(1.dp, StructaPurple.copy(alpha = 0.3f), RoundedCornerShape(12.dp)),
                             contentAlignment = Alignment.Center
                         ) {
                             Icon(
@@ -221,8 +222,8 @@ fun FolderPickerDialog(
                 // Breadcrumb / Navigation Bar
                 Surface(
                     shape = RoundedCornerShape(12.dp),
-                    color = DarkSurfaceRaised,
-                    border = BorderStroke(1.dp, DarkOutlineVariant.copy(alpha = 0.35f)),
+                    color = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.4f),
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f)),
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Row(
@@ -249,7 +250,7 @@ fun FolderPickerDialog(
                         Text(
                             text = currentFolder.absolutePath,
                             style = MaterialTheme.typography.bodySmall,
-                            color = DarkTextPrimary,
+                            color = MaterialTheme.colorScheme.onSurface,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis,
                             modifier = Modifier.weight(1f)
@@ -266,7 +267,7 @@ fun FolderPickerDialog(
                             Icon(
                                 imageVector = Icons.Filled.CreateNewFolder,
                                 contentDescription = "Nueva carpeta",
-                                tint = StructaCyan,
+                                tint = StructaLavender,
                                 modifier = Modifier.size(20.dp)
                             )
                         }
@@ -322,8 +323,8 @@ fun FolderPickerDialog(
                         .weight(1f)
                         .fillMaxWidth()
                         .clip(RoundedCornerShape(12.dp))
-                        .background(DarkSurfaceRaised.copy(alpha = 0.5f))
-                        .border(1.dp, DarkOutlineVariant.copy(alpha = 0.25f), RoundedCornerShape(12.dp))
+                        .background(MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.25f))
+                        .border(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f), RoundedCornerShape(12.dp))
                 ) {
                     when {
                         loading -> {
@@ -385,18 +386,21 @@ fun FolderPickerDialog(
 
                 // Bottom Action Buttons
                 Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 4.dp),
+                    horizontalArrangement = Arrangement.End,
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    OutlinedButton(
+                    TextButton(
                         onClick = onDismiss,
                         shape = RoundedCornerShape(12.dp),
-                        border = BorderStroke(1.dp, DarkOutlineVariant.copy(alpha = 0.6f)),
-                        colors = ButtonDefaults.outlinedButtonColors(contentColor = DarkTextSecondary),
-                        modifier = Modifier.weight(1f)
+                        colors = ButtonDefaults.textButtonColors(contentColor = DarkTextSecondary)
                     ) {
                         Text(stringResource(R.string.common_cancel))
                     }
+
+                    Spacer(Modifier.width(12.dp))
 
                     Button(
                         onClick = { onSelectFolder(currentFolder.canonicalPath) },
@@ -404,8 +408,7 @@ fun FolderPickerDialog(
                         colors = ButtonDefaults.buttonColors(
                             containerColor = StructaPurple,
                             contentColor = Color.White
-                        ),
-                        modifier = Modifier.weight(1.5f)
+                        )
                     ) {
                         Icon(
                             imageVector = Icons.Filled.Check,
@@ -441,7 +444,7 @@ fun FolderPickerDialog(
                     Icon(
                         imageVector = Icons.Filled.CreateNewFolder,
                         contentDescription = null,
-                        tint = StructaCyan,
+                        tint = StructaLavender,
                         modifier = Modifier.size(24.dp)
                     )
                 }
@@ -469,7 +472,7 @@ fun FolderPickerDialog(
                     colors = OutlinedTextFieldDefaults.colors(
                         focusedContainerColor = DarkSurfaceRaised,
                         unfocusedContainerColor = DarkSurfaceRaised,
-                        focusedBorderColor = StructaCyan,
+                        focusedBorderColor = StructaPurple,
                         unfocusedBorderColor = DarkOutlineVariant
                     ),
                     modifier = Modifier.fillMaxWidth()
@@ -495,19 +498,18 @@ fun FolderPickerDialog(
                     },
                     shape = RoundedCornerShape(12.dp),
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = StructaCyan,
-                        contentColor = Color.Black
+                        containerColor = StructaPurple,
+                        contentColor = Color.White
                     )
                 ) {
                     Text("Crear", fontWeight = FontWeight.Bold)
                 }
             },
             dismissButton = {
-                OutlinedButton(
+                TextButton(
                     onClick = { showCreateFolderDialog = false },
                     shape = RoundedCornerShape(12.dp),
-                    border = BorderStroke(1.dp, DarkOutlineVariant.copy(alpha = 0.6f)),
-                    colors = ButtonDefaults.outlinedButtonColors(contentColor = DarkTextSecondary)
+                    colors = ButtonDefaults.textButtonColors(contentColor = DarkTextSecondary)
                 ) {
                     Text(stringResource(R.string.common_cancel))
                 }
@@ -525,10 +527,10 @@ private fun LocationChip(
 ) {
     Surface(
         shape = RoundedCornerShape(8.dp),
-        color = if (selected) StructaPurple.copy(alpha = 0.2f) else DarkSurfaceRaised,
+        color = if (selected) StructaPurple.copy(alpha = 0.15f) else MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.4f),
         border = BorderStroke(
             1.dp,
-            if (selected) StructaPurple.copy(alpha = 0.8f) else DarkOutlineVariant.copy(alpha = 0.3f)
+            if (selected) StructaPurple.copy(alpha = 0.5f) else MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f)
         ),
         modifier = Modifier.clickable(onClick = onClick)
     ) {
@@ -539,14 +541,14 @@ private fun LocationChip(
             Icon(
                 imageVector = icon,
                 contentDescription = null,
-                tint = if (selected) StructaPurple else DarkTextSecondary,
+                tint = if (selected) StructaLavender else DarkTextSecondary,
                 modifier = Modifier.size(15.dp)
             )
             Spacer(Modifier.width(6.dp))
             Text(
                 text = label,
                 style = MaterialTheme.typography.labelSmall,
-                color = if (selected) StructaLavender else DarkTextPrimary,
+                color = if (selected) StructaLavender else MaterialTheme.colorScheme.onSurface,
                 fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium
             )
         }
