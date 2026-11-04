@@ -20,8 +20,13 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.SpanStyle
@@ -29,11 +34,16 @@ import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextDecoration
+import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.edro08.structa.domain.editor.markdown.MarkdownNode
 import com.edro08.structa.domain.editor.markdown.MarkdownSpan
+import com.edro08.structa.domain.editor.markdown.TableAlignment
+import com.edro08.structa.ui.theme.DarkOutlineVariant
+import com.edro08.structa.ui.theme.DarkSurface
 import com.edro08.structa.ui.theme.DarkSurfaceRaised
 import com.edro08.structa.ui.theme.DarkTextPrimary
 import com.edro08.structa.ui.theme.ScreenStyle
@@ -85,6 +95,9 @@ fun MarkdownViewer(
                             modifier = Modifier.padding(vertical = 12.dp)
                         )
                     }
+                    is MarkdownNode.Table -> MarkdownTableItem(node) { url ->
+                        try { uriHandler.openUri(url) } catch (_: Exception) {}
+                    }
                 }
             }
         }
@@ -109,9 +122,7 @@ private fun MarkdownHeadingItem(
         text = annotated,
         style = style,
         fontWeight = FontWeight.Bold,
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(top = topPad, bottom = bottomPad)
+        modifier = Modifier.padding(top = topPad, bottom = bottomPad)
     )
 }
 
@@ -126,9 +137,7 @@ private fun MarkdownParagraphItem(
         style = MaterialTheme.typography.bodyMedium,
         lineHeight = 22.sp,
         color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.92f),
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = 4.dp)
+        modifier = Modifier.padding(vertical = 4.dp)
     )
 }
 
@@ -201,30 +210,283 @@ private fun MarkdownBlockquoteItem(
         modifier = Modifier
             .fillMaxWidth()
             .padding(vertical = 6.dp)
-            .clip(RoundedCornerShape(6.dp))
-            .background(StructaPurple.copy(alpha = 0.08f))
-            .border(
-                1.dp,
-                StructaPurple.copy(alpha = 0.18f),
-                RoundedCornerShape(6.dp)
-            )
-            .padding(10.dp)
     ) {
         Box(
             modifier = Modifier
                 .width(3.dp)
-                .height(20.dp)
-                .clip(RoundedCornerShape(2.dp))
-                .background(StructaPurple)
+                .height(IntrinsicSize.Min)
+                .background(StructaPurple, RoundedCornerShape(2.dp))
         )
-        Spacer(Modifier.width(10.dp))
+        Spacer(Modifier.width(12.dp))
         Text(
             text = annotated,
-            style = MaterialTheme.typography.bodyMedium.copy(fontStyle = FontStyle.Italic),
+            style = MaterialTheme.typography.bodyMedium,
+            fontStyle = FontStyle.Italic,
             lineHeight = 21.sp,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.weight(1f)
         )
+    }
+}
+
+private class TableCoordinates {
+    var colStarts = intArrayOf()
+    var colWidths = intArrayOf()
+    var rowStarts = intArrayOf()
+    var rowHeights = intArrayOf()
+}
+
+@Composable
+private fun MarkdownTableItem(
+    table: MarkdownNode.Table,
+    onLinkClick: (String) -> Unit
+) {
+    if (table.headers.cells.isEmpty()) return
+
+    BoxWithConstraints(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 10.dp)
+    ) {
+        val density = LocalDensity.current
+        val viewportWidthPx = with(density) { maxWidth.roundToPx() }
+
+        Surface(
+            modifier = Modifier
+                .fillMaxWidth()
+                .border(
+                    1.dp,
+                    DarkOutlineVariant.copy(alpha = 0.6f),
+                    RoundedCornerShape(12.dp)
+                ),
+            shape = RoundedCornerShape(12.dp),
+            color = DarkSurface
+        ) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .horizontalScroll(rememberScrollState())
+            ) {
+                MarkdownTableLayout(
+                    table = table,
+                    viewportWidthPx = viewportWidthPx,
+                    onLinkClick = onLinkClick
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun MarkdownTableLayout(
+    table: MarkdownNode.Table,
+    viewportWidthPx: Int,
+    onLinkClick: (String) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val numColumns = table.headers.cells.size
+    val numRows = 1 + table.rows.size
+    val coords = remember { TableCoordinates() }
+
+    Layout(
+        content = {
+            // 1. Headers
+            table.headers.cells.forEachIndexed { colIdx, cell ->
+                val alignment = table.alignments.getOrElse(colIdx) { TableAlignment.LEFT }
+                val textAlign = when (alignment) {
+                    TableAlignment.CENTER -> TextAlign.Center
+                    TableAlignment.RIGHT -> TextAlign.End
+                    TableAlignment.LEFT -> TextAlign.Start
+                }
+                Box(
+                    modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp)
+                ) {
+                    val headerSpans = buildMarkdownSpans(
+                        cell.spans,
+                        onLinkClick,
+                        defaultColor = StructaLavender,
+                        parentFontWeight = FontWeight.Bold
+                    )
+                    Text(
+                        text = headerSpans,
+                        style = MaterialTheme.typography.bodyMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = StructaLavender,
+                        textAlign = textAlign
+                    )
+                }
+            }
+
+            // 2. Data Rows
+            table.rows.forEach { row ->
+                row.cells.forEachIndexed { colIdx, cell ->
+                    val alignment = table.alignments.getOrElse(colIdx) { TableAlignment.LEFT }
+                    val textAlign = when (alignment) {
+                        TableAlignment.CENTER -> TextAlign.Center
+                        TableAlignment.RIGHT -> TextAlign.End
+                        TableAlignment.LEFT -> TextAlign.Start
+                    }
+                    Box(
+                        modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp)
+                    ) {
+                        val cellSpans = buildMarkdownSpans(
+                            cell.spans,
+                            onLinkClick,
+                            defaultColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.90f)
+                        )
+                        Text(
+                            text = cellSpans,
+                            style = MaterialTheme.typography.bodyMedium,
+                            lineHeight = 20.sp,
+                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.90f),
+                            textAlign = textAlign
+                        )
+                    }
+                }
+            }
+        },
+        modifier = modifier.drawBehind {
+            val cs = coords.colStarts
+            val cw = coords.colWidths
+            val rs = coords.rowStarts
+            val rh = coords.rowHeights
+            if (cs.isEmpty() || rs.isEmpty()) return@drawBehind
+
+            // 1. Header background
+            if (rh.isNotEmpty()) {
+                drawRect(
+                    color = DarkSurfaceRaised,
+                    topLeft = Offset(0f, 0f),
+                    size = Size(size.width, rh[0].toFloat())
+                )
+            }
+
+            // 2. Zebra background for alternate body rows (odd body rows)
+            for (r in 1 until rs.size) {
+                if (r % 2 == 0) {
+                    drawRect(
+                        color = DarkSurfaceRaised.copy(alpha = 0.35f),
+                        topLeft = Offset(0f, rs[r].toFloat()),
+                        size = Size(size.width, rh[r].toFloat())
+                    )
+                }
+            }
+
+            // 3. Horizontal grid dividers
+            val dividerColor = DarkOutlineVariant.copy(alpha = 0.35f)
+            val headerDividerColor = DarkOutlineVariant.copy(alpha = 0.75f)
+            for (r in 1 until rs.size) {
+                val y = rs[r].toFloat()
+                val isHeaderDivider = (r == 1)
+                drawLine(
+                    color = if (isHeaderDivider) headerDividerColor else dividerColor,
+                    start = Offset(0f, y),
+                    end = Offset(size.width, y),
+                    strokeWidth = if (isHeaderDivider) 1.5.dp.toPx() else 0.8.dp.toPx()
+                )
+            }
+
+            // 4. Vertical grid dividers between columns
+            for (c in 1 until cs.size) {
+                val x = cs[c].toFloat()
+                drawLine(
+                    color = dividerColor,
+                    start = Offset(x, 0f),
+                    end = Offset(x, size.height),
+                    strokeWidth = 0.8.dp.toPx()
+                )
+            }
+        }
+    ) { measurables, _ ->
+        if (measurables.size < numRows * numColumns) {
+            return@Layout layout(0, 0) {}
+        }
+
+        val minColWidthPx = 100.dp.roundToPx()
+        val maxColWidthPx = 320.dp.roundToPx()
+
+        // Measure all cells with flexible constraints
+        val cellConstraints = Constraints(
+            minWidth = 0,
+            maxWidth = maxColWidthPx,
+            minHeight = 0,
+            maxHeight = Constraints.Infinity
+        )
+        val placeables = measurables.map { it.measure(cellConstraints) }
+
+        // Find max width for each column across ALL rows
+        val colWidths = IntArray(numColumns)
+        for (c in 0 until numColumns) {
+            var maxW = minColWidthPx
+            for (r in 0 until numRows) {
+                val idx = r * numColumns + c
+                maxW = maxOf(maxW, placeables[idx].width)
+            }
+            colWidths[c] = minOf(maxW, maxColWidthPx)
+        }
+
+        // Expand columns proportionally if total width is less than viewport
+        val totalColWidth = colWidths.sum()
+        if (totalColWidth < viewportWidthPx && numColumns > 0) {
+            val extra = viewportWidthPx - totalColWidth
+            val perCol = extra / numColumns
+            val remainder = extra % numColumns
+            for (c in 0 until numColumns) {
+                colWidths[c] += perCol + (if (c < remainder) 1 else 0)
+            }
+        }
+
+        // Find max height for each row across ALL columns
+        val rowHeights = IntArray(numRows)
+        for (r in 0 until numRows) {
+            var maxH = 0
+            for (c in 0 until numColumns) {
+                val idx = r * numColumns + c
+                maxH = maxOf(maxH, placeables[idx].height)
+            }
+            rowHeights[r] = maxH
+        }
+
+        val colStarts = IntArray(numColumns)
+        var currX = 0
+        for (c in 0 until numColumns) {
+            colStarts[c] = currX
+            currX += colWidths[c]
+        }
+        val totalWidth = currX
+
+        val rowStarts = IntArray(numRows)
+        var currY = 0
+        for (r in 0 until numRows) {
+            rowStarts[r] = currY
+            currY += rowHeights[r]
+        }
+        val totalHeight = currY
+
+        coords.colStarts = colStarts
+        coords.colWidths = colWidths
+        coords.rowStarts = rowStarts
+        coords.rowHeights = rowHeights
+
+        layout(totalWidth, totalHeight) {
+            for (r in 0 until numRows) {
+                for (c in 0 until numColumns) {
+                    val idx = r * numColumns + c
+                    val placeable = placeables[idx]
+                    val cellW = colWidths[c]
+                    val cellH = rowHeights[r]
+                    val align = table.alignments.getOrElse(c) { TableAlignment.LEFT }
+
+                    val x = when (align) {
+                        TableAlignment.LEFT -> colStarts[c]
+                        TableAlignment.CENTER -> colStarts[c] + (cellW - placeable.width) / 2
+                        TableAlignment.RIGHT -> colStarts[c] + (cellW - placeable.width)
+                    }
+                    val y = rowStarts[r] + (cellH - placeable.height) / 2
+                    placeable.placeRelative(x, y)
+                }
+            }
+        }
     }
 }
 
@@ -233,73 +495,77 @@ private fun MarkdownCodeBlockItem(codeBlock: MarkdownNode.CodeBlock) {
     val clipboard = LocalClipboardManager.current
     var copied by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
-    val shape = RoundedCornerShape(10.dp)
 
-    Column(
+    Surface(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(vertical = 8.dp)
-            .clip(shape)
-            .background(DarkSurfaceRaised)
-            .border(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.7f), shape)
+            .padding(vertical = 6.dp)
+            .border(
+                1.dp,
+                MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f),
+                RoundedCornerShape(12.dp)
+            ),
+        shape = RoundedCornerShape(12.dp),
+        color = DarkSurfaceRaised
     ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .background(MaterialTheme.colorScheme.surfaceContainerHigh)
-                .padding(horizontal = 12.dp, vertical = 6.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            val langLabel = if (codeBlock.language.isNotBlank()) codeBlock.language.uppercase() else "CODE"
-            Text(
-                text = langLabel,
-                style = MaterialTheme.typography.labelSmall,
-                fontFamily = FontFamily.Monospace,
-                fontWeight = FontWeight.Bold,
-                color = StructaLavender
-            )
-
+        Column {
             Row(
                 modifier = Modifier
-                    .clip(RoundedCornerShape(6.dp))
-                    .clickable {
-                        clipboard.setText(AnnotatedString(codeBlock.content))
-                        copied = true
-                        scope.launch {
-                            delay(2000)
-                            copied = false
-                        }
-                    }
-                    .padding(horizontal = 6.dp, vertical = 3.dp),
+                    .fillMaxWidth()
+                    .background(MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.5f))
+                    .padding(horizontal = 12.dp, vertical = 6.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Icon(
-                    imageVector = if (copied) Icons.Default.Check else Icons.Default.ContentCopy,
-                    contentDescription = null,
-                    tint = if (copied) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.size(14.dp)
-                )
-                Spacer(Modifier.width(4.dp))
                 Text(
-                    text = if (copied) "Copiado" else "Copiar",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = if (copied) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+                    text = codeBlock.language.ifEmpty { "CODE" }.uppercase(),
+                    fontFamily = FontFamily.Monospace,
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = StructaLavender
                 )
-            }
-        }
 
-        Text(
-            text = codeBlock.content,
-            fontFamily = FontFamily.Monospace,
-            fontSize = 13.sp,
-            lineHeight = 19.sp,
-            color = DarkTextPrimary,
-            modifier = Modifier
-                .fillMaxWidth()
-                .horizontalScroll(rememberScrollState())
-                .padding(12.dp)
-        )
+                Row(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(6.dp))
+                        .clickable {
+                            clipboard.setText(androidx.compose.ui.text.AnnotatedString(codeBlock.content))
+                            copied = true
+                            scope.launch {
+                                delay(2000)
+                                copied = false
+                            }
+                        }
+                        .padding(horizontal = 6.dp, vertical = 3.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        imageVector = if (copied) Icons.Default.Check else Icons.Default.ContentCopy,
+                        contentDescription = null,
+                        tint = if (copied) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.size(14.dp)
+                    )
+                    Spacer(Modifier.width(4.dp))
+                    Text(
+                        text = if (copied) "Copiado" else "Copiar",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = if (copied) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+
+            Text(
+                text = codeBlock.content,
+                fontFamily = FontFamily.Monospace,
+                fontSize = 13.sp,
+                lineHeight = 19.sp,
+                color = DarkTextPrimary,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .horizontalScroll(rememberScrollState())
+                    .padding(12.dp)
+            )
+        }
     }
 }
 
@@ -307,68 +573,105 @@ private fun MarkdownCodeBlockItem(codeBlock: MarkdownNode.CodeBlock) {
 private fun buildMarkdownSpans(
     spans: List<MarkdownSpan>,
     onLinkClick: (String) -> Unit,
-    defaultColor: Color? = null
+    defaultColor: Color? = null,
+    parentFontWeight: FontWeight? = null,
+    parentFontStyle: FontStyle? = null,
+    parentColor: Color? = null
 ): AnnotatedString {
     val colors = MaterialTheme.colorScheme
-    val fallbackColor = defaultColor ?: colors.onSurface
+    val fallbackColor = parentColor ?: defaultColor ?: colors.onSurface
     return buildAnnotatedString {
-        for (span in spans) {
-            when (span) {
-                is MarkdownSpan.Text -> {
-                    pushStyle(SpanStyle(color = fallbackColor))
+        appendSpans(spans, fallbackColor, parentFontWeight, parentFontStyle, onLinkClick)
+    }
+}
+
+private fun AnnotatedString.Builder.appendSpans(
+    spans: List<MarkdownSpan>,
+    fallbackColor: Color,
+    parentFontWeight: FontWeight?,
+    parentFontStyle: FontStyle?,
+    onLinkClick: (String) -> Unit
+) {
+    for (span in spans) {
+        when (span) {
+            is MarkdownSpan.Text -> {
+                val style = SpanStyle(
+                    color = fallbackColor,
+                    fontWeight = parentFontWeight,
+                    fontStyle = parentFontStyle
+                )
+                pushStyle(style)
+                append(span.text)
+                pop()
+            }
+            is MarkdownSpan.Bold -> {
+                val weight = FontWeight.Bold
+                if (span.children.isNotEmpty()) {
+                    appendSpans(span.children, fallbackColor, weight, parentFontStyle, onLinkClick)
+                } else {
+                    pushStyle(SpanStyle(fontWeight = weight, fontStyle = parentFontStyle, color = fallbackColor))
                     append(span.text)
                     pop()
                 }
-                is MarkdownSpan.Bold -> {
-                    pushStyle(SpanStyle(fontWeight = FontWeight.Bold, color = fallbackColor))
+            }
+            is MarkdownSpan.Italic -> {
+                val italic = FontStyle.Italic
+                if (span.children.isNotEmpty()) {
+                    appendSpans(span.children, fallbackColor, parentFontWeight, italic, onLinkClick)
+                } else {
+                    pushStyle(SpanStyle(fontStyle = italic, fontWeight = parentFontWeight, color = fallbackColor))
                     append(span.text)
                     pop()
                 }
-                is MarkdownSpan.Italic -> {
-                    pushStyle(SpanStyle(fontStyle = FontStyle.Italic, color = fallbackColor))
+            }
+            is MarkdownSpan.BoldItalic -> {
+                val weight = FontWeight.Bold
+                val italic = FontStyle.Italic
+                if (span.children.isNotEmpty()) {
+                    appendSpans(span.children, fallbackColor, weight, italic, onLinkClick)
+                } else {
+                    pushStyle(SpanStyle(fontWeight = weight, fontStyle = italic, color = fallbackColor))
                     append(span.text)
                     pop()
                 }
-                is MarkdownSpan.BoldItalic -> {
-                    pushStyle(
-                        SpanStyle(
-                            fontWeight = FontWeight.Bold,
-                            fontStyle = FontStyle.Italic,
-                            color = fallbackColor
-                        )
+            }
+            is MarkdownSpan.Colored -> {
+                val resolvedColor = parseColorString(span.color) ?: fallbackColor
+                if (span.children.isNotEmpty()) {
+                    appendSpans(span.children, resolvedColor, parentFontWeight, parentFontStyle, onLinkClick)
+                } else {
+                    pushStyle(SpanStyle(color = resolvedColor, fontWeight = parentFontWeight, fontStyle = parentFontStyle))
+                    append(span.text)
+                    pop()
+                }
+            }
+            is MarkdownSpan.InlineCode -> {
+                pushStyle(
+                    SpanStyle(
+                        fontFamily = FontFamily.Monospace,
+                        background = DarkSurfaceRaised,
+                        color = StructaCyan,
+                        fontSize = 13.sp,
+                        fontWeight = parentFontWeight ?: FontWeight.Normal
                     )
-                    append(span.text)
-                    pop()
-                }
-                is MarkdownSpan.Colored -> {
-                    val resolvedColor = parseColorString(span.color) ?: fallbackColor
-                    pushStyle(SpanStyle(color = resolvedColor))
-                    append(span.text)
-                    pop()
-                }
-                is MarkdownSpan.InlineCode -> {
-                    pushStyle(
-                        SpanStyle(
-                            fontFamily = FontFamily.Monospace,
-                            background = DarkSurfaceRaised,
-                            color = StructaCyan,
-                            fontSize = 13.sp
-                        )
+                )
+                append(" ${span.text} ")
+                pop()
+            }
+            is MarkdownSpan.Link -> {
+                pushStyle(
+                    SpanStyle(
+                        color = StructaCyan,
+                        textDecoration = TextDecoration.Underline,
+                        fontWeight = FontWeight.Medium
                     )
-                    append(" ${span.text} ")
-                    pop()
-                }
-                is MarkdownSpan.Link -> {
-                    pushStyle(
-                        SpanStyle(
-                            color = StructaCyan,
-                            textDecoration = TextDecoration.Underline,
-                            fontWeight = FontWeight.Medium
-                        )
-                    )
+                )
+                if (span.children.isNotEmpty()) {
+                    appendSpans(span.children, StructaCyan, FontWeight.Medium, parentFontStyle, onLinkClick)
+                } else {
                     append(span.text)
-                    pop()
                 }
+                pop()
             }
         }
     }
@@ -381,8 +684,7 @@ private fun parseColorString(colorStr: String): Color? {
         "amber" -> Color(0xFFF59E0B)
         "yellow" -> Color(0xFFEAB308)
         "red" -> Color(0xFFEF4444)
-        "green" -> Color(0xFF10B981)
-        "emerald" -> Color(0xFF10B981)
+        "green", "emerald" -> Color(0xFF10B981)
         "teal" -> Color(0xFF14B8A6)
         "cyan" -> Color(0xFF06B6D4)
         "blue" -> Color(0xFF3B82F6)
@@ -390,8 +692,7 @@ private fun parseColorString(colorStr: String): Color? {
         "violet", "purple" -> Color(0xFF8B5CF6)
         "fuchsia", "pink" -> Color(0xFFEC4899)
         "rose" -> Color(0xFFF43F5E)
-        "gray", "grey" -> Color(0xFF94A3B8)
-        "slate" -> Color(0xFF94A3B8)
+        "gray", "grey", "slate" -> Color(0xFF94A3B8)
         "white" -> Color.White
         "black" -> Color.Black
         else -> {

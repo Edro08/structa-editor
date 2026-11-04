@@ -2,6 +2,9 @@ package com.edro08.structa.data.filesystem.direct
 
 import com.edro08.structa.domain.document.DocumentId
 import com.edro08.structa.domain.document.MAX_EDITABLE_BYTES
+import com.edro08.structa.domain.editor.encoding.CharsetDetector
+import com.edro08.structa.domain.editor.encoding.DecodedContent
+import com.edro08.structa.domain.editor.encoding.DocumentCharset
 import com.edro08.structa.domain.filesystem.FileEntry
 import com.edro08.structa.domain.filesystem.FileSystem
 import java.io.File
@@ -44,31 +47,25 @@ class DirectFileSystem : FileSystem {
         }.sortedWith(compareBy<File> { !it.isDirectory }.thenBy { it.name.lowercase() }).map(::entry)
     }
 
-    override suspend fun read(file: FileEntry): String = withContext(Dispatchers.IO) {
+    override suspend fun read(file: FileEntry): String = readWithCharset(file).text
+
+    override suspend fun readWithCharset(file: FileEntry, explicitCharset: DocumentCharset?): DecodedContent = withContext(Dispatchers.IO) {
         val source = file(file.id)
         if (!source.isFile) throw IOException("No se puede leer una carpeta como archivo")
         if (source.length() > MAX_EDITABLE_BYTES) throw IOException("Este archivo supera los 25 MB y aun no puede editarse.")
-        source.inputStream().buffered().use { input ->
-            val output = java.io.ByteArrayOutputStream()
-            val bytes = ByteArray(DEFAULT_BUFFER_SIZE)
-            var total = 0L
-            while (true) {
-                ensureActive()
-                val count = input.read(bytes)
-                if (count < 0) break
-                total += count
-                if (total > MAX_EDITABLE_BYTES) throw IOException("Este archivo supera los 25 MB y aun no puede editarse.")
-                output.write(bytes, 0, count)
-            }
-            output.toString(Charsets.UTF_8.name())
-        }
+        val bytes = source.readBytes()
+        CharsetDetector.decode(bytes, explicitCharset)
     }
 
-    override suspend fun write(destination: DocumentId, content: String): Unit = withContext(Dispatchers.IO) {
+    override suspend fun write(destination: DocumentId, content: String): Unit =
+        writeWithCharset(destination, content, DocumentCharset.DEFAULT)
+
+    override suspend fun writeWithCharset(destination: DocumentId, content: String, charset: DocumentCharset): Unit = withContext(Dispatchers.IO) {
         val target = file(destination)
         if (target.exists() && target.isDirectory) throw IOException("No se puede escribir en una carpeta")
         target.parentFile?.mkdirs()
-        target.outputStream().bufferedWriter(Charsets.UTF_8).use { it.write(content) }
+        val bytes = CharsetDetector.encode(content, charset)
+        target.writeBytes(bytes)
     }
 
     override suspend fun create(parent: DocumentId, name: String, directory: Boolean): FileEntry = withContext(Dispatchers.IO) {

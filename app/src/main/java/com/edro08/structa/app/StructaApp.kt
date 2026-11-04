@@ -198,7 +198,10 @@ fun StructaApp(openIntent: Intent? = null, onOpenIntentHandled: (Intent) -> Unit
 
         val observer = LifecycleEventObserver { _, event ->
 
-            if (event == Lifecycle.Event.ON_STOP) editor.checkpointSession()
+            if (event == Lifecycle.Event.ON_STOP) {
+                editor.checkpointSession()
+                editor.flushAllDrafts()
+            }
 
             if (event == Lifecycle.Event.ON_RESUME) directAuthorized = Environment.isExternalStorageManager()
 
@@ -206,7 +209,7 @@ fun StructaApp(openIntent: Intent? = null, onOpenIntentHandled: (Intent) -> Unit
 
         activity.lifecycle.addObserver(observer)
 
-        onDispose { editor.checkpointSession(); activity.lifecycle.removeObserver(observer) }
+        onDispose { editor.checkpointSession(); editor.flushAllDrafts(); activity.lifecycle.removeObserver(observer) }
 
     }
 
@@ -403,7 +406,7 @@ fun StructaApp(openIntent: Intent? = null, onOpenIntentHandled: (Intent) -> Unit
 
                              showAccessoryBar = settingsState.showAccessoryBar,
 
-                             onExplore = { screen = Screen.BROWSER }, onLanguage = editor::setLanguage,
+                             onExplore = { screen = Screen.BROWSER }, onLanguage = editor::setLanguage, onCharset = editor::setCharset, onAutoDetectCharset = editor::autoDetectCharset,
 
                              onMessage = editor::showMessage,
 
@@ -424,7 +427,9 @@ fun StructaApp(openIntent: Intent? = null, onOpenIntentHandled: (Intent) -> Unit
                              onGlobalSearch = globalSearch::open, onToggleEditable = editor::toggleEditable, onRedo = editor::redo, onLine = editor::goToLine,
 
                              onGoToStart = editor::goToStart, onGoToEnd = editor::goToEnd,
-                             onSaveAs = { destinationId -> editor.saveAs(destinationId) })
+                             onSaveAs = { destinationId -> editor.saveAs(destinationId) },
+                             onRestoreDraft = editor::restoreDraft,
+                             onDiscardDraft = editor::discardRecoveredDraft)
 
                          Screen.SETTINGS -> SettingsScreen(settingsState, onBack = { screen = Screen.HOME },
 

@@ -1,19 +1,38 @@
 package com.edro08.structa.domain.editor.markdown
 
 /**
- * Spans that can appear inside a rich text block (Paragraph, ListItem, Blockquote, Heading).
+ * Spans that can appear inside a rich text block (Paragraph, ListItem, Blockquote, Heading, TableCell).
  */
 sealed interface MarkdownSpan {
     val text: String
 
     data class Text(override val text: String) : MarkdownSpan
-    data class Bold(override val text: String) : MarkdownSpan
-    data class Italic(override val text: String) : MarkdownSpan
-    data class BoldItalic(override val text: String) : MarkdownSpan
+    data class Bold(override val text: String, val children: List<MarkdownSpan> = emptyList()) : MarkdownSpan
+    data class Italic(override val text: String, val children: List<MarkdownSpan> = emptyList()) : MarkdownSpan
+    data class BoldItalic(override val text: String, val children: List<MarkdownSpan> = emptyList()) : MarkdownSpan
     data class InlineCode(override val text: String) : MarkdownSpan
-    data class Link(override val text: String, val url: String) : MarkdownSpan
-    data class Colored(override val text: String, val color: String) : MarkdownSpan
+    data class Link(override val text: String, val url: String, val children: List<MarkdownSpan> = emptyList()) : MarkdownSpan
+    data class Colored(override val text: String, val color: String, val children: List<MarkdownSpan> = emptyList()) : MarkdownSpan
 }
+
+/**
+ * Text alignment for Markdown table columns.
+ */
+enum class TableAlignment {
+    LEFT,
+    CENTER,
+    RIGHT
+}
+
+/**
+ * A single cell in a Markdown table with rich spans.
+ */
+data class TableCell(val spans: List<MarkdownSpan>)
+
+/**
+ * A row of cells in a Markdown table.
+ */
+data class TableRow(val cells: List<TableCell>)
 
 /**
  * High-level block elements produced by the Markdown parser.
@@ -39,4 +58,11 @@ sealed interface MarkdownNode {
 
     /** Horizontal divider (---, ***, ___) */
     object ThematicBreak : MarkdownNode
+
+    /** GFM Table with headers, alignments, and body rows */
+    data class Table(
+        val headers: TableRow,
+        val alignments: List<TableAlignment>,
+        val rows: List<TableRow>
+    ) : MarkdownNode
 }

@@ -71,19 +71,34 @@ Las fases **1–16** representan el desarrollo del motor base, arquitectura, erg
 - Selección táctil fluida con menú flotante de copiado (`Copiar` y `Seleccionar todo`) y alternancia a edición con `Ctrl+E` o botón de lápiz.
 - Tema Pure OLED con negro absoluto (`#000000`), listas planas sin tarjetas en Inicio y Explorador, y botones en degradado Violeta a Índigo (`#7C3AED` a `#4F46E5`).
 
-### Fase 16 — Vista limpia renderizada de Markdown
-- Parser de Markdown en Kotlin puro (`MarkdownParser`) sin librerías externas ni WebViews: encabezados (H1–H6), listas, citas, código cercado y formato inline (negrita, cursiva, enlaces, código inline).
-- Visor `MarkdownViewer` en Jetpack Compose sobre Pure OLED con bloques de código copiables y selección libre de texto.
+### Fase 16 — Vista limpia renderizada de Markdown y Tablas GFM
+- Parser de Markdown en Kotlin puro (`MarkdownParser`) sin librerías externas ni WebViews: encabezados (H1–H6), listas, citas, código cercado, formato inline anidado (código en línea dentro de negrita/cursiva/color) y soporte completo de tablas GFM con alineación de columnas.
+- Visor `MarkdownViewer` en Jetpack Compose sobre Pure OLED con bloques de código copiables, tarjetas de tabla con cuadrícula continua 2D (`MarkdownTableLayout`), scroll horizontal fluido y selección libre de texto.
 - Apertura en vista limpia por defecto para `.md` en modo lectura con alternancia rápida a código fuente o edición (`Ctrl+E`).
+
+### Fase 17 — Codificaciones de texto (Charsets & Encodings)
+- Detección automática inteligente de charset por inspección estricta de BOM y decodificador de secuencias UTF-8 con fallback seguro a Windows-1252.
+- Soporte para 9 codificaciones: `UTF-8`, `UTF-8 BOM`, `UTF-16 LE`, `UTF-16 BE`, `ANSI (Windows-1252)`, `ISO-8859-1 (Latin 1)`, `US-ASCII`, `IBM437 (DOS)` y `Windows-1250`.
+- Menú contextual y diálogo modal Pure OLED `EncodingSelectionDialog` para selección manual o autodetección.
+- Abstracción de lectura/escritura (`readWithCharset`, `writeWithCharset`) en filesystem y casos de uso preservando el charset activo de cada documento.
+- Indicador visual dinámico de codificación en el encabezado de información del documento.
 
 ---
 
 ## 🟡 Hoja de ruta técnica
 
-### Fase 17 — Robustez móvil y persistencia
-*Objetivo: Protección contra pérdida de datos en el ciclo de vida de Android.*
-- Recuperación automática de borradores (*Draft Crash Recovery*) ante cierres del sistema o falta de memoria.
-- Detección y lectura de codificaciones alternativas (UTF-16, ISO-8859-1).
+### Fase 18 — Robustez móvil y persistencia (Draft Crash Recovery)
+- Dominio puro `domain.editor.draft`: `DocumentDraft` (documentId, content, timestamp, cursorAnchor, cursorActive, scrollX, scrollY, charset) y contrato `DraftRepository` con cero dependencias de Android.
+- Implementación atómica `FileDraftRepository` en directorio privado (`files/drafts`): claves SHA-256, delimitador seguro y escritura temporal atómica para inmunidad contra cierres abruptos o falta de batería.
+- Auto-guardado debounced (600ms) ante cambios en el buffer sucio y flush inmediato en ciclo de vida Android (`ON_STOP`, `onDispose` y `onCleared`).
+- Detección automática y banner no intrusivo Pure OLED (`DraftRecoveryBanner`) con acciones de 1 toque: «Restaurar» (aplica contenido, marca dirty y restaura cursor/scroll) y «Descartar» (limpia borrador en disco).
+- Limpieza automática de borradores al guardar exitosamente el archivo o descartar cambios.
+
+---
+
+## 🟡 Hoja de ruta técnica
+
+*(Fases futuras por planificar según requerimientos del producto)*
 
 ---
 
@@ -95,6 +110,8 @@ Las fases **1–16** representan el desarrollo del motor base, arquitectura, erg
 | Ergonomía y búsqueda (Fases 12–14) | 189 | 54 |
 | Modo lectura y Pure OLED (Fase 15) | 189 | 54 |
 | Vista limpia Markdown (Fase 16) | 193 | 54 |
+| Codificaciones y Tablas (Fase 17) | 207 | 54 |
+| Persistencia y Borradores (Fase 18) | 221 | 54 |
 
 Comandos de verificación en Windows PowerShell:
 ```powershell

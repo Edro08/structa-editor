@@ -1,6 +1,114 @@
 # Historial de Structa
 
+## 2026-11-03 — Estandarización del Sistema de Diálogos y Modales Visuales
 
+- **Unificación de Jerarquía de Acciones y Botones**:
+  - **Botón Primario**: Formato unificado `Button` con esquinas redondeadas (`12.dp`), fondo `StructaPurple` (o `StatusRed` en borrado destructivo), texto blanco semi-negrita, y estados deshabilitados explícitos con `StructaPurple.copy(alpha = 0.25f)` y texto al 35% de opacidad, eliminando el gris genérico deslavado de Material 3.
+  - **Botón Secundario / Cancelar**: Estandarizado a `TextButton` con color `DarkTextSecondary`, erradicando los `OutlinedButton` que competían visualmente con el botón primario.
+- **Limpieza de Espacio Vertical en Modales de Navegación y Búsqueda**:
+  - `ProductivityPicker` (Índice de contenido / Outline): Removido el botón redundante inferior «Cerrar», maximizando la altura útil para el listado de secciones y títulos; retiene el botón `X` (`18.dp`) en la cabecera.
+  - `GlobalSearchDialog` (Buscar en Workspace): Incorporado botón de cierre `X` en la fila superior de cabecera junto al alternador de búsqueda/reemplazo; eliminado el botón inferior «Cerrar». Estandarizado el botón «Reemplazar» con estilos deshabilitados violeta consistentes.
+- **Eliminación del Esquema de Colores Arcoíris en Badges**:
+  - `LanguageSelectionDialog` (`LanguageOptionCard`): Sustituidos los colores dispersos por extensión (naranjas, celestes, amarillos) por badges monocromáticos sobrios con contenedor slate (`MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.5f)` o `StructaPurple.copy(alpha = 0.25f)` al seleccionarse), borde fino al 40% y tipografía en `DarkTextSecondary` / `StructaLavender`. Checkmark circular violeta para el elemento activo.
+  - `EncodingSelectionDialog` (`EncodingOptionCard`): Badges unificados con contenedor sobrio y texto uniforme (`DarkTextSecondary` / `StructaLavender`), erradicando las etiquetas de colores heterogéneos (BOM, 16LE, 16BE, ANSI, DOS).
+- **Estandarización de Diálogos de Archivo y Selector de Carpetas**:
+  - `BrowserScreen`: Header horizontal con badge, título y subtítulo; campo sin notch superior y con placeholder limpio; botón «Confirmar» con colores deshabilitados violeta sutil y botón «Cancelar» con `TextButton(DarkTextSecondary)`.
+  - `SaveAsDialog` & `GoToLineDialog` (`EditorScreen`): Botones de confirmación violeta con estado deshabilitado estilizado y botón «Cancelar» en `TextButton`.
+  - `FolderPickerDialog`: Corrección de tonalidad azulada/morada en el contenedor removiendo `tonalElevation` artificial (`color = surface, tonalElevation = 0.dp`); eliminación de cyan fosforescente en el icono y modal de nueva carpeta sustituyéndolo por `StructaLavender` y `StructaPurple`; estandarización del botón «Cancelar» en `TextButton` y botón primario «Usar esta carpeta» (`StructaPurple`).
+  - `EncodingSelectionDialog`: Supresión del tinte artificial de superficie (`color = surface, tonalElevation = 0.dp`); armonización de la tarjeta «Detectar automáticamente» con fondo neutral y badge lavanda sobrio, evitando conflicto visual con la opción seleccionada.
+- **Ajuste de Alturas y Márgenes en Listas Desplazables**:
+  - `LanguageSelectionDialog`: Ampliada la altura máxima a `480.dp` con `Spacer` inferior de `8.dp`, permitiendo visualizar todos los elementos (incluyendo «Go») íntegramente con sus 4 esquinas redondeadas sin recortes, preservando el deslizamiento fluido con `verticalScroll` para futuras extensiones.
+  - `EncodingSelectionDialog`: Superficie ajustada a `0.88f` con `Spacer` inferior de `16.dp`, asegurando que el último elemento («IBM437» y «Windows-1250») cuente con separación visual respecto al borde curvo del diálogo y se desplace con total holgura.
+- **Verificación**:
+  - 221 pruebas unitarias JVM (`:app:testDebugUnitTest`) ejecutadas y aprobadas.
+  - Verificación visual en vivo en emulador Android (`Pixel 9 Pro` / API 35) con capturas de pantalla de todos los diálogos (`screen_workspace_search_v2.png`, `screen_workspace_search_results.png`, `screen_new_file_v2.png`, `screen_outline_v2.png`, `screen_language_v3.png`, `screen_encoding_v3.png`, `screen_encoding_scrolled.png`, `screen_folder_picker_v2.png`).
+
+## 2026-11-03 — Fase 18: Robustez Móvil y Persistencia (Draft Crash Recovery)
+
+- **Arquitectura de Dominio Desacoplada (`DocumentDraft`, `DraftRepository`)**:
+  - Definición del modelo de datos inmutable `DocumentDraft` en `com.edro08.structa.domain.editor.draft` con metadatos completos de sesión (`documentId`, `content`, `timestamp`, `cursorAnchor`, `cursorActive`, `scrollX`, `scrollY`, `charset`), cumpliendo estrictamente con `agents/specs/architecture.md` (cero dependencias de Android).
+  - Interfaz `DraftRepository` con operaciones de almacenamiento, lectura, listado y limpieza atómica de borradores.
+- **Persistencia Segura y Atómica en Disco (`FileDraftRepository`)**:
+  - Implementación en `data/draft/FileDraftRepository` utilizando hash SHA-256 de los identificadores de documento para soporte de nombres arbitrarios y URIs complejas sin colisiones de nombres en el sistema de archivos.
+  - Escritura a prueba de fallos mediante archivos temporales `.tmp` y renombrado atómico a `.draft`, evitando archivos parciales o corrompidos durante cortes de energía o cierres forzados del SO.
+  - Formato de serialización basado en cabecera con delimitador de contenido directo, eliminando dependencias externas de serialización y stubs en pruebas unitarias de JVM.
+- **Gestión Reactiva en ViewModel y Ciclo de Vida (`EditorViewModel`, `StructaApp`)**:
+  - Guardado en segundo plano con debounce de 600 ms tras mutaciones de texto (`syncInput`) sobre documentos sucios.
+  - Detección inteligente al abrir o restaurar documentos (`checkForDraft`): compara el contenido del borrador con el archivo en disco; si son idénticos lo descarta automáticamente, y si difieren activa el estado `recoveredDraft`.
+  - Acciones de usuario `restoreDraft()` (reemplaza texto con comando invertible, marca estado sucio y restaura cursores y desplazamiento) y `discardRecoveredDraft()` (elimina el borrador de disco de inmediato).
+  - Limpieza automática de borradores al guardar exitosamente el archivo (`writeSnapshot`, `saveAll`) o descartar cambios.
+  - Enjuague inmediato de borradores pendientes (`flushAllDrafts()`) ante checkpoints de sesión y eventos de ciclo de vida de la actividad (`Lifecycle.Event.ON_STOP`, `onDispose` y `onCleared`).
+- **Notificaciones Flotantes Estilo Vaultk (`MessageOverlay`)**:
+  - Rediseño completo del toast/notificación flotante inferior inspirándose en `VaultkNotificationCard`:
+    - Forma en píldora con esquinas redondeadas (`20.dp`), elevación (`6.dp`), borde `outlineVariant` y fondo oscuro `surfaceContainerHigh`.
+    - Icono de estado en el lateral izquierdo: círculo de check verde esmeralda (`#44DB98`) para guardado exitoso y restauración; icono de advertencia (`StatusOrange`) o error (`StatusRed`) según corresponda.
+    - Botón de cierre minimalista con icono circular `X` (`18.dp`), eliminando el botón de texto tosco.
+    - Auto-descarte inteligente tras 3.5 segundos con soporte para cierre manual inmediato.
+- **Banner Pure OLED en Editor (`DraftRecoveryBanner`, `EditorScreen`)**:
+  - Componente de notificación no intrusivo en el visor/editor con diseño Pure OLED (`#141418`, borde sutil ámbar `StatusOrange` al 50% e icono de advertencia).
+  - Acciones claras en 1 toque: botón primario «Restaurar» con estilo `StructaPurple` y botón de texto «Descartar».
+- **Verificación**:
+  - Suite de 221 pruebas unitarias JVM aprobadas (`:app:testDebugUnitTest`), incorporando 7 pruebas de repositorio de archivos (`FileDraftRepositoryTest`) y 7 pruebas de ciclo de vida y recuperación (`EditorDraftRecoveryTest`).
+  - Verificación en emulador Android en vivo (`Pixel 9 Pro` / API 35): edición de archivo, force stop mediante `am force-stop`, reapertura de app con detección inmediata del banner de recuperación, restauración con 1 toque con cursores intactos y eliminación del borrador tras guardar.
+
+## 2026-11-02 — Mejoras en Renderizador Markdown: Tablas GFM y Formatos Anidados
+
+- **Formato Anidado en Spans (MarkdownModel, MarkdownParser, MarkdownViewer)**:
+  - Se amplió MarkdownSpan (Bold, Italic, BoldItalic, Link, Colored) para admitir children: List<MarkdownSpan> = emptyList().
+  - El parser descompone recursivamente delimitadores internos dentro de bloques en negrita o cursiva (por ejemplo ** Realm settings **), evitando la fuga de backticks literales sin renderizar.
+  - En la UI (MarkdownViewer), la función ppendSpans procesa en cascada estilos heredados (parentFontWeight, parentFontStyle, allbackColor) y dibuja correctamente los badges de código (InlineCode) dentro de negritas y cursivas.
+- **Refinamiento Semántico en Menú de Edición (EditorScreen, strings_editor.xml)**:
+  - Se actualizó la opción de ajuste de línea de «Ajuste de línea» a «Ajustar texto a la pantalla».
+  - Se sustituyó el icono genérico de código (Icons.Filled.Code) por el icono especializado Icons.AutoMirrored.Filled.WrapText para diferenciarlo con claridad de la opción «Lenguaje».
+  - Verificación visual en emulador Android confirmando ajuste en una sola línea y checkmark activo.
+
+- **Soporte Completo de Tablas GFM y Layout de Rejilla Unificado (MarkdownNode.Table, MarkdownTableLayout)**:
+  - Corrección de desalineación columnar: anteriormente, cada fila de la tabla renderizaba un Row independiente en Compose, lo que provocaba que columnas con celdas de longitudes variables se desfasaran horizontalmente entre filas (efecto escalonado).
+  - Implementación de MarkdownTableLayout con un Layout personalizado en Compose:
+    - Mide todas las celdas en bloque y sincroniza el ancho máximo de cada columna ( = \max_r(	ext{width}(r, c))$) y el alto de cada fila ( = \max_c(	ext{height}(r, c))$).
+    - Dibuja mediante drawBehind cuadrícula completa: líneas divisorias verticales continuas entre columnas, líneas divisorias horizontales entre filas, separador grueso de cabecera y rayado de cebra alternado.
+    - Distribución inteligente de ancho: si la tabla tiene pocas columnas y el ancho total es menor que la pantalla, se expande proporcionalmente hasta llenar la tarjeta; si excede la pantalla, habilita scroll horizontal fluido.
+    - Alineación estricta (izquierda, centro, derecha) sobre el ancho unificado de la columna.
+  - Modelo con TableRow, TableCell y alineaciones (TableAlignment.LEFT, CENTER, RIGHT).
+  - Parser robusto que detecta filas de encabezado, delimitadores con alineación sintáctica (:---, :---:, ---:) y filas de datos con celdas normalizadas y escape de pipes (\|).
+  - Componente visual MarkdownTableItem con diseño Pure OLED:
+    - Tarjeta contenedora con bordes sutiles DarkOutlineVariant y esquinas redondeadas (12.dp).
+    - Desplazamiento horizontal independiente (Modifier.horizontalScroll()) para preservar legibilidad en pantallas móviles sin cortar texto.
+    - Encabezado con elevación visual (DarkSurfaceRaised), tipografía destacada y separador DarkOutline.
+    - Rayado de cebra alternado (DarkSurface / transparente) y alineación configurable por columna.
+    - Soporte completo para renderizar formato enriquecido (código en línea, enlaces, negritas) dentro de cada celda.
+- **Verificación**:
+  - Pruebas unitarias de parser actualizadas y aprobadas (parseNestedInlineCodeInsideBold, parseTable_headersAlignmentsAndRows).
+  - Verificación visual en emulador Android en vivo comprobando ausencia de backticks en listas y desplazamiento fluido horizontal en tablas.
+
+## 2026-11-02 — Fase 17: Codificaciones de Texto (Charsets & Encodings)
+
+- **Motor de Detección y Transcodificación en Dominio Puro (`CharsetDetector`, `DocumentCharset`)**:
+  - Implementación en `domain/editor/encoding/` en Kotlin puro, sin dependencias de `android.*` o `androidx.*` de acuerdo con las especificaciones de arquitectura.
+  - Soporte para 9 juegos de caracteres: `UTF-8`, `UTF-8 con BOM`, `UTF-16 LE`, `UTF-16 BE`, `ANSI (Windows-1252)`, `ISO-8859-1 (Latin 1)`, `ASCII (7-bit)`, `IBM437 (MS-DOS OEM)` y `Windows-1250 (CE)`.
+  - Algoritmo de detección inteligente:
+    1. Inspección estricta de BOMs (`EF BB BF`, `FF FE`, `FE FF`).
+    2. Validación de secuencias de bytes UTF-8 válidas mediante decodificador estricto `StandardCharsets.UTF_8`.
+    3. Inspección de rango de bytes característicos de ANSI Windows-1252 (`0x80..0x9F`).
+    4. Fallback seguro a UTF-8/Windows-1252.
+  - Limpieza automática de firmas BOM en memoria (`\uFEFF`) y re-inyección al guardar según la codificación objetivo.
+- **Abstracción del Sistema de Archivos con Soporte de Codificación (`FileReader`, `FileWriter`, `DirectFileSystem`)**:
+  - Métodos `readWithCharset` y `writeWithCharset` en interfaces de filesystem con retrocompatibilidad.
+  - Soporte en casos de uso de aplicación: `OpenDocument` y `SaveDocumentCopy`.
+  - Documentos portan su metadato de codificación activa `charset: DocumentCharset`.
+- **Integración Reactiva en ViewModel (`EditorViewModel`)**:
+  - `setCharset(charset)`: Si el documento no tiene modificaciones pendientes, lo recarga desde disco con el nuevo charset; si está sucio, fija el charset de destino para la próxima operación de guardado.
+  - `autoDetectCharset()`: Recarga el archivo aplicando detección automática sin intervención del usuario.
+  - Soporte de guardado con la codificación seleccionada en `SaveSnapshot`.
+- **Experiencia de Usuario y Diálogo Pure OLED (`EncodingSelectionDialog`, `EditorScreen`)**:
+  - Opción `Codificación >` en el menú overflow de 3 puntos del editor junto a `Lenguaje`.
+  - Diálogo modal Pure OLED con diseño acorde a la guía de estilo de Structa:
+    - Tarjeta superior «Detectar automáticamente» con icono `AutoAwesome`.
+    - Tarjetas para cada codificación con insignias de color personalizadas (`UTF-8`, `BOM`, `16LE`, `16BE`, `ANSI`, `ISO`, `ASCII`, `DOS`, `CE`), descripción y selector circular de estado activo.
+  - Subtítulo de información del documento en la barra superior actualizado para incluir la codificación en tiempo real: `${lenguaje} · ${tamaño} · ${codificación} · ${modo}` (ej. `Markdown · 8 KB · UTF-8 · Lectura`).
+- **Verificación**:
+  - Suite de pruebas unitarias aprobada: 203 pruebas (`:app:testDebugUnitTest`), incluyendo tests exhaustivos de BOM, secuencias válidas/inválidas UTF-8 y codificación de salida en `CharsetDetectorTest`.
+  - Verificación en dispositivo Android en vivo: conmutación entre UTF-8 y ANSI / UTF-16, reflejo inmediato del texto decodificado y restauración automática mediante «Detectar automáticamente».
 
 ## 2026-11-02 — Fase 16: Vista Renderizada Markdown, Rediseño de Diálogos OLED y Selector de Guardar Como
 

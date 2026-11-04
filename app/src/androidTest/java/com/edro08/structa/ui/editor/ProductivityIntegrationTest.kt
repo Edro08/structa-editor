@@ -94,7 +94,7 @@ class ProductivityIntegrationTest {
     @Test fun wordWrapMenuKeepsModePerTabAndDoesNotEditTheDocument() {
         launch()
         compose.onNodeWithContentDescription("Menú Editor").performClick()
-        compose.onNodeWithText("Ajuste de línea").performClick()
+        compose.onNodeWithText("Ajustar texto a la pantalla").performClick()
         compose.runOnIdle {
             assertEquals(WordWrapMode.VIEWPORT, model.state.value.viewState.wordWrapMode)
             assertEquals("cat\ncat CAT", model.state.value.value.text)
@@ -111,7 +111,7 @@ class ProductivityIntegrationTest {
         compose.waitUntil(5_000) { model.state.value.entry?.id == a.id }
         compose.runOnIdle { assertEquals(WordWrapMode.VIEWPORT, model.state.value.viewState.wordWrapMode) }
         compose.onNodeWithContentDescription("Menú Editor").performClick()
-        compose.onNodeWithText("Ajuste de línea").performClick()
+        compose.onNodeWithText("Ajustar texto a la pantalla").performClick()
         compose.runOnIdle {
             assertEquals(WordWrapMode.OFF, model.state.value.viewState.wordWrapMode)
             assertFalse(model.state.value.dirty)

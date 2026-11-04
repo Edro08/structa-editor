@@ -16,6 +16,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.InsertDriveFile
 import androidx.compose.material.icons.automirrored.filled.Redo
 import androidx.compose.material.icons.automirrored.filled.Undo
+import androidx.compose.material.icons.automirrored.filled.WrapText
 import androidx.compose.material.icons.filled.ArrowDownward
 import androidx.compose.material.icons.filled.ArrowUpward
 import androidx.compose.material.icons.filled.Close
@@ -34,6 +35,7 @@ import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Save
 import androidx.compose.material.icons.filled.SaveAs
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.Translate
 import androidx.compose.material.icons.filled.AutoFixHigh
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.*
@@ -56,6 +58,7 @@ import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import com.edro08.structa.R
 import com.edro08.structa.domain.document.DocumentId
+import com.edro08.structa.domain.editor.encoding.DocumentCharset
 import com.edro08.structa.domain.editor.command.*
 import com.edro08.structa.domain.editor.cursor.TextOffset
 import com.edro08.structa.domain.editor.cursor.TextRange
@@ -127,7 +130,7 @@ private fun actionName(action: EditorAction): String = when (action) {
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun EditorScreen(state: EditorUiState, onBack: () -> Unit, onExplore: () -> Unit,
-    onLanguage: (Language) -> Unit, onSearch: (String) -> Unit,
+    onLanguage: (Language) -> Unit, onCharset: (DocumentCharset) -> Unit = {}, onAutoDetectCharset: () -> Unit = {}, onSearch: (String) -> Unit,
     onFormat: () -> Unit, onUndo: () -> Unit, onRedo: () -> Unit, onLine: (Int) -> Unit, onSaveAs: (DocumentId) -> Unit = {},
     onMessage: (String) -> Unit,
     onSave: () -> Unit, onSelectDocument: (DocumentId) -> Unit, onCloseDocument: (DocumentId) -> Unit,
@@ -139,12 +142,15 @@ fun EditorScreen(state: EditorUiState, onBack: () -> Unit, onExplore: () -> Unit
     onCloseAll: () -> Unit = {}, onCloseOthers: () -> Unit = {},
     onGoToStart: () -> Unit = {}, onGoToEnd: () -> Unit = {}, onSaveAll: () -> Unit = {},
     onGlobalSearch: () -> Unit = {},
-    onToggleEditable: () -> Unit = {}) {
+    onToggleEditable: () -> Unit = {},
+    onRestoreDraft: () -> Unit = {},
+    onDiscardDraft: () -> Unit = {}) {
     var showSearch by rememberSaveable { mutableStateOf(false) }
     var showReplace by rememberSaveable { mutableStateOf(false) }
     var showFileMenu by remember { mutableStateOf(false) }
     var showEditMenu by remember { mutableStateOf(false) }
     var showFormatMenu by remember { mutableStateOf(false) }
+    var showEncodingMenu by remember { mutableStateOf(false) }
     var showGoToLine by rememberSaveable { mutableStateOf(false) }
     var showSaveAsDialog by rememberSaveable { mutableStateOf(false) }
     var showOutline by rememberSaveable { mutableStateOf(false) }
@@ -214,7 +220,7 @@ fun EditorScreen(state: EditorUiState, onBack: () -> Unit, onExplore: () -> Unit
                     val modeLabel = if (state.isEditable) stringResource(R.string.editor_mode_edit)
                         else if (isMarkdown && renderMarkdown) stringResource(R.string.editor_mode_rendered)
                         else stringResource(R.string.editor_mode_view)
-                    Text(stringResource(R.string.editor_document_info, languageName(state.highlightLanguage()), formatBytes(entry.sizeBytes)) + " · " + modeLabel, maxLines = 1,
+                    Text(stringResource(R.string.editor_document_info, languageName(state.highlightLanguage()), formatBytes(entry.sizeBytes)) + " · " + state.charset.displayName + " · " + modeLabel, maxLines = 1,
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
@@ -334,7 +340,11 @@ fun EditorScreen(state: EditorUiState, onBack: () -> Unit, onExplore: () -> Unit
                               enabled = entry != null && !state.loading, submenu = true) {
                               showEditMenu = false; showFormatMenu = true
                           }
-                          EditorMenuOption(stringResource(R.string.editor_word_wrap), Icons.Filled.Code,
+                          EditorMenuOption("Codificación", Icons.Filled.Translate,
+                              enabled = entry != null && !state.loading, submenu = true) {
+                              showEditMenu = false; showEncodingMenu = true
+                          }
+                          EditorMenuOption(stringResource(R.string.editor_word_wrap), Icons.AutoMirrored.Filled.WrapText,
                               enabled = entry != null && !state.loading,
                               checked = state.viewState.wordWrapMode == WordWrapMode.VIEWPORT) {
                               showEditMenu = false
@@ -348,6 +358,12 @@ fun EditorScreen(state: EditorUiState, onBack: () -> Unit, onExplore: () -> Unit
         Column(Modifier.fillMaxSize().padding(padding).imePadding()) {
              if (state.tabs.size > 1) {
                  EditorTabStrip(state.tabs, onSelectDocument, onCloseDocument)
+             }
+             if (state.recoveredDraft != null) {
+                 DraftRecoveryBanner(
+                     onRestore = onRestoreDraft,
+                     onDiscard = onDiscardDraft
+                 )
              }
             if (state.loading) {
                 LinearProgressIndicator(Modifier.fillMaxWidth())
@@ -436,7 +452,7 @@ fun EditorScreen(state: EditorUiState, onBack: () -> Unit, onExplore: () -> Unit
                   }
                   state.inputSession?.let { input ->
                       if (isMarkdown && !state.isEditable && renderMarkdown) {
-                          val markdownText = remember(state.contentVersion) {
+                          val markdownText = remember(state.contentVersion, input.engine.document) {
                               val buf = input.engine.document.buffer
                               buf.getText(0, buf.length).toString()
                           }
@@ -542,50 +558,111 @@ fun EditorScreen(state: EditorUiState, onBack: () -> Unit, onExplore: () -> Unit
             shape = RoundedCornerShape(24.dp),
             containerColor = MaterialTheme.colorScheme.surface,
             title = {
-                Text(
-                    text = stringResource(R.string.dialog_editor_go_to_line),
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onSurface
-                )
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(40.dp)
+                                .background(StructaPurple.copy(alpha = 0.15f), RoundedCornerShape(12.dp))
+                                .border(1.dp, StructaPurple.copy(alpha = 0.3f), RoundedCornerShape(12.dp)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Filled.FormatListNumbered,
+                                contentDescription = null,
+                                tint = StructaLavender,
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
+                        Column {
+                            Text(
+                                text = stringResource(R.string.dialog_editor_go_to_line),
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                            Text(
+                                text = "Saltar al número de línea del archivo",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = DarkTextSecondary
+                            )
+                        }
+                    }
+                    IconButton(
+                        onClick = { showGoToLine = false },
+                        modifier = Modifier.size(32.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Filled.Close,
+                            contentDescription = stringResource(R.string.common_cancel),
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.size(18.dp)
+                        )
+                    }
+                }
             },
             text = {
                 LaunchedEffect(Unit) { withFrameNanos { }; lineFocus.requestFocus() }
-                OutlinedTextField(
-                    value = requestedLine,
-                    onValueChange = { requestedLine = it.filter(Char::isDigit) },
-                    modifier = Modifier.fillMaxWidth().focusRequester(lineFocus).onPreviewKeyEvent {
-                        if (it.type == KeyEventType.KeyDown && it.key == Key.Enter && requestedLine.toIntOrNull()?.let { n -> n > 0 } == true) {
-                            onLine(requestedLine.toInt()); showGoToLine = false; true
-                        } else if (it.type == KeyEventType.KeyDown && it.key == Key.Escape) { showGoToLine = false; true } else false
-                    },
-                    singleLine = true,
-                    label = { Text(stringResource(R.string.dialog_editor_line_number)) },
-                    shape = RoundedCornerShape(14.dp),
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedContainerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
-                        unfocusedContainerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
-                        focusedBorderColor = StructaPurple,
-                        unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant
+                Column(modifier = Modifier.fillMaxWidth()) {
+                    Text(
+                        text = stringResource(R.string.dialog_editor_line_number),
+                        style = MaterialTheme.typography.labelMedium,
+                        color = DarkTextSecondary,
+                        modifier = Modifier.padding(bottom = 6.dp)
                     )
-                )
+                    OutlinedTextField(
+                        value = requestedLine,
+                        onValueChange = { requestedLine = it.filter(Char::isDigit) },
+                        placeholder = {
+                            Text(
+                                "ej. 42",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = DarkTextSecondary.copy(alpha = 0.5f)
+                            )
+                        },
+                        modifier = Modifier.fillMaxWidth().focusRequester(lineFocus).onPreviewKeyEvent {
+                            if (it.type == KeyEventType.KeyDown && it.key == Key.Enter && requestedLine.toIntOrNull()?.let { n -> n > 0 } == true) {
+                                onLine(requestedLine.toInt()); showGoToLine = false; true
+                            } else if (it.type == KeyEventType.KeyDown && it.key == Key.Escape) { showGoToLine = false; true } else false
+                        },
+                        singleLine = true,
+                        shape = RoundedCornerShape(12.dp),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedContainerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+                            unfocusedContainerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+                            focusedBorderColor = StructaPurple,
+                            unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.45f)
+                        )
+                    )
+                }
             },
             confirmButton = {
                 Button(
                     enabled = requestedLine.toIntOrNull()?.let { it > 0 } == true,
                     shape = RoundedCornerShape(12.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = StructaPurple, contentColor = Color.White),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = StructaPurple,
+                        contentColor = Color.White,
+                        disabledContainerColor = StructaPurple.copy(alpha = 0.25f),
+                        disabledContentColor = Color.White.copy(alpha = 0.35f)
+                    ),
                     onClick = { requestedLine.toIntOrNull()?.let(onLine); showGoToLine = false }
                 ) {
                     Text(stringResource(R.string.editor_accept), fontWeight = FontWeight.SemiBold)
                 }
             },
             dismissButton = {
-                OutlinedButton(
+                TextButton(
                     onClick = { showGoToLine = false },
                     shape = RoundedCornerShape(12.dp),
-                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.6f)),
-                    colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.onSurfaceVariant)
+                    colors = ButtonDefaults.textButtonColors(contentColor = DarkTextSecondary)
                 ) {
                     Text(stringResource(R.string.common_cancel))
                 }
@@ -624,6 +701,22 @@ fun EditorScreen(state: EditorUiState, onBack: () -> Unit, onExplore: () -> Unit
                 showFormatMenu = false
             },
             onDismiss = { showFormatMenu = false }
+        )
+    }
+    if (showEncodingMenu) {
+        EncodingSelectionDialog(
+            currentCharset = state.charset,
+            onSelect = { charset ->
+                state.inputSession?.finishComposingText()
+                onCharset(charset)
+                showEncodingMenu = false
+            },
+            onAutoDetect = {
+                state.inputSession?.finishComposingText()
+                onAutoDetectCharset()
+                showEncodingMenu = false
+            },
+            onDismiss = { showEncodingMenu = false }
         )
     }
     state.pendingClose?.let { id ->
@@ -964,7 +1057,7 @@ private fun LanguageSelectionDialog(
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .heightIn(max = 380.dp)
+                        .heightIn(max = 480.dp)
                         .verticalScroll(rememberScrollState()),
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
@@ -976,6 +1069,7 @@ private fun LanguageSelectionDialog(
                             onClick = { onSelect(language) }
                         )
                     }
+                    Spacer(Modifier.height(8.dp))
                 }
             }
         }
@@ -988,14 +1082,14 @@ private fun LanguageOptionCard(
     isSelected: Boolean,
     onClick: () -> Unit
 ) {
-    val (badgeText, badgeColor, description) = when (language.id) {
-        "markdown" -> Triple("MD", StructaLavender, "Documentación, notas y vista previa")
-        "json" -> Triple("{ }", StatusOrange, "Estructuras de datos · Formateo")
-        "yaml" -> Triple("YML", StructaCyan, "Configuración legible · Formateo")
-        "xml" -> Triple("< >", Color(0xFFFB923C), "Marcado y layouts · Formateo")
-        "go" -> Triple("GO", Color(0xFF00ADD8), "Código fuente Go · Sintaxis")
-        "text" -> Triple("TXT", DarkTextSecondary, "Texto plano sin resaltado")
-        else -> Triple(language.id.take(3).uppercase(), MaterialTheme.colorScheme.primary, "")
+    val (badgeText, description) = when (language.id) {
+        "markdown" -> Pair("MD", "Documentación, notas y vista previa")
+        "json" -> Pair("{ }", "Estructuras de datos · Formateo")
+        "yaml" -> Pair("YML", "Configuración legible · Formateo")
+        "xml" -> Pair("< >", "Marcado y layouts · Formateo")
+        "go" -> Pair("GO", "Código fuente Go · Sintaxis")
+        "text" -> Pair("TXT", "Texto plano sin resaltado")
+        else -> Pair(language.id.take(3).uppercase(), "")
     }
 
     val backgroundColor = if (isSelected) {
@@ -1009,6 +1103,14 @@ private fun LanguageOptionCard(
     } else {
         MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.45f)
     }
+
+    val badgeBgColor = if (isSelected) {
+        StructaPurple.copy(alpha = 0.25f)
+    } else {
+        MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.5f)
+    }
+
+    val badgeTextColor = if (isSelected) StructaLavender else DarkTextSecondary
 
     Surface(
         onClick = onClick,
@@ -1027,14 +1129,19 @@ private fun LanguageOptionCard(
             Box(
                 modifier = Modifier
                     .size(36.dp)
-                    .background(badgeColor.copy(alpha = 0.15f), RoundedCornerShape(8.dp)),
+                    .background(badgeBgColor, RoundedCornerShape(8.dp))
+                    .border(
+                        1.dp,
+                        if (isSelected) StructaPurple.copy(alpha = 0.4f) else MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f),
+                        RoundedCornerShape(8.dp)
+                    ),
                 contentAlignment = Alignment.Center
             ) {
                 Text(
                     text = badgeText,
                     style = MaterialTheme.typography.labelMedium,
                     fontWeight = FontWeight.Bold,
-                    color = badgeColor
+                    color = badgeTextColor
                 )
             }
 
@@ -1236,21 +1343,100 @@ private fun SaveAsDialog(
                 shape = RoundedCornerShape(12.dp),
                 colors = ButtonDefaults.buttonColors(
                     containerColor = StructaPurple,
-                    contentColor = Color.White
+                    contentColor = Color.White,
+                    disabledContainerColor = StructaPurple.copy(alpha = 0.25f),
+                    disabledContentColor = Color.White.copy(alpha = 0.35f)
                 )
             ) {
                 Text(stringResource(R.string.editor_save), fontWeight = FontWeight.SemiBold)
             }
         },
         dismissButton = {
-            OutlinedButton(
+            TextButton(
                 onClick = onDismiss,
                 shape = RoundedCornerShape(12.dp),
-                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.6f)),
-                colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.onSurfaceVariant)
+                colors = ButtonDefaults.textButtonColors(contentColor = DarkTextSecondary)
             ) {
                 Text(stringResource(R.string.common_cancel))
             }
         }
     )
+}
+
+
+@Composable
+fun DraftRecoveryBanner(
+    onRestore: () -> Unit,
+    onDiscard: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Surface(
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(horizontal = 12.dp, vertical = 6.dp),
+        shape = RoundedCornerShape(12.dp),
+        color = Color(0xFF141418),
+        border = BorderStroke(1.dp, StatusOrange.copy(alpha = 0.5f)),
+        tonalElevation = 2.dp
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(12.dp)
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Icon(
+                    imageVector = Icons.Filled.WarningAmber,
+                    contentDescription = null,
+                    tint = StatusOrange,
+                    modifier = Modifier.size(20.dp)
+                )
+                Spacer(Modifier.width(8.dp))
+                Text(
+                    text = stringResource(R.string.draft_recovery_title),
+                    style = MaterialTheme.typography.titleSmall,
+                    color = Color.White,
+                    fontWeight = FontWeight.SemiBold
+                )
+            }
+            Spacer(Modifier.height(4.dp))
+            Text(
+                text = stringResource(R.string.draft_recovery_desc),
+                style = MaterialTheme.typography.bodySmall,
+                color = DarkTextSecondary
+            )
+            Spacer(Modifier.height(8.dp))
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.End,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                TextButton(
+                    onClick = onDiscard,
+                    colors = ButtonDefaults.textButtonColors(contentColor = DarkTextSecondary)
+                ) {
+                    Text(stringResource(R.string.draft_recovery_discard), style = MaterialTheme.typography.labelMedium)
+                }
+                Spacer(Modifier.width(8.dp))
+                Button(
+                    onClick = onRestore,
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = StructaPurple,
+                        contentColor = Color.White
+                    ),
+                    shape = RoundedCornerShape(8.dp),
+                    contentPadding = PaddingValues(horizontal = 14.dp, vertical = 6.dp)
+                ) {
+                    Text(
+                        stringResource(R.string.draft_recovery_restore),
+                        style = MaterialTheme.typography.labelMedium,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+            }
+        }
+    }
 }
