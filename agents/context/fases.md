@@ -83,15 +83,13 @@ Las fases **1–16** representan el desarrollo del motor base, arquitectura, erg
 - Abstracción de lectura/escritura (`readWithCharset`, `writeWithCharset`) en filesystem y casos de uso preservando el charset activo de cada documento.
 - Indicador visual dinámico de codificación en el encabezado de información del documento.
 
----
-
-## 🟡 Hoja de ruta técnica
-
-### Fase 18 — Robustez móvil y persistencia (Draft Crash Recovery)
+### Fase 18 — Robustez móvil y persistencia (Draft Crash Recovery) & Estandarización Visual
 - Dominio puro `domain.editor.draft`: `DocumentDraft` (documentId, content, timestamp, cursorAnchor, cursorActive, scrollX, scrollY, charset) y contrato `DraftRepository` con cero dependencias de Android.
 - Implementación atómica `FileDraftRepository` en directorio privado (`files/drafts`): claves SHA-256, delimitador seguro y escritura temporal atómica para inmunidad contra cierres abruptos o falta de batería.
 - Auto-guardado debounced (600ms) ante cambios en el buffer sucio y flush inmediato en ciclo de vida Android (`ON_STOP`, `onDispose` y `onCleared`).
 - Detección automática y banner no intrusivo Pure OLED (`DraftRecoveryBanner`) con acciones de 1 toque: «Restaurar» (aplica contenido, marca dirty y restaura cursor/scroll) y «Descartar» (limpia borrador en disco).
+- Notificación flotante inferior estilo Vaultk (`MessageOverlay`) con tarjeta en píldora (`20.dp`), acento verde esmeralda `#44DB98` para guardado y botón circular `X`.
+- Estandarización de diálogos y modales: eliminación de colores arcoíris en badges, eliminación del notch en inputs, botones primarios violetas con disabled translúcido, botones secundarios `TextButton` planos y alturas con scroll fluido garantizado.
 - Limpieza automática de borradores al guardar exitosamente el archivo o descartar cambios.
 
 ---
