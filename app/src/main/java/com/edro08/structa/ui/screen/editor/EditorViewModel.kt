@@ -26,6 +26,8 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.ensureActive
 import com.edro08.structa.domain.editor.cursor.TextOffset
+import com.edro08.structa.domain.editor.draft.DocumentDraft
+import com.edro08.structa.domain.editor.draft.DraftRepository
 import com.edro08.structa.domain.editor.encoding.DocumentCharset
 import com.edro08.structa.domain.editor.cursor.TextRange as CoreTextRange
 import com.edro08.structa.ui.editor.input.EditorInputSession
@@ -70,7 +72,8 @@ data class EditorUiState(
     val formatting: Boolean = false,
     val saving: Boolean = false,
     val pendingSave: SaveSnapshot? = null,
-    val message: String? = null
+    val message: String? = null,
+    val recoveredDraft: DocumentDraft? = null
 )
 
 private fun FileMode.syntaxLanguage(): Language = when (this) {
@@ -93,7 +96,8 @@ class EditorViewModel(
     private val sessionRepository: SessionRepository? = null,
     private val fileSystem: FileSystem? = null,
     private val formatXmlDocument: FormatXmlDocument = FormatXmlDocument(),
-    private val formatYamlDocument: FormatYamlDocument = FormatYamlDocument()
+    private val formatYamlDocument: FormatYamlDocument = FormatYamlDocument(),
+    private val draftRepository: DraftRepository? = null
 ) : ViewModel() {
     private val mutableState = MutableStateFlow(EditorUiState())
     val state = mutableState.asStateFlow()
@@ -108,6 +112,7 @@ class EditorViewModel(
     private val searchJobs = mutableMapOf<DocumentId, Job>()
     private val closeQueue = ArrayDeque<DocumentId>()
     private var advancingCloseQueue = false
+    private val draftJobs = mutableMapOf<DocumentId, Job>()
 
     init {
         if (sessionRepository != null && fileSystem != null) {
@@ -126,6 +131,7 @@ class EditorViewModel(
                                 tab.active.coerceIn(0, document.content.length))
                             opened.viewState.scrollX = tab.scrollX
                             opened.viewState.scrollY = tab.scrollY
+                            checkForDraft(document.entry.id, document.content)
                         } catch (exception: CancellationException) { throw exception
                         } catch (_: Exception) { failures += tab.id.value }
                     }
@@ -168,6 +174,7 @@ class EditorViewModel(
             val input = opened.inputSession!!
             SessionTab(id, input.anchor, input.active, opened.viewState.scrollX, opened.viewState.scrollY)
         }, state.value.entry?.id))
+        flushAllDrafts()
     }
 
     private fun tabs(active: DocumentId? = state.value.entry?.id) = documents.map { (id, document) ->
@@ -191,9 +198,11 @@ class EditorViewModel(
         openJob?.cancel()
         invalidateFormat()
         val current = state.value
-        mutableState.value = documents.getValue(id).copy(loading = false, formatting = false,
+        val opened = documents.getValue(id)
+        mutableState.value = opened.copy(loading = false, formatting = false,
             pendingSave = current.pendingSave, saving = current.saving, pendingClose = current.pendingClose,
-            message = null, tabs = tabs(id), dirty = documents.getValue(id).inputSession!!.engine.document.dirty)
+            message = null, tabs = tabs(id), dirty = opened.inputSession!!.engine.document.dirty,
+            recoveredDraft = opened.recoveredDraft)
         scheduleCheckpoint()
     }
 
@@ -211,6 +220,7 @@ class EditorViewModel(
                 val document = openDocument(entry, explicitCharset)
                 if (token != generation) return@launch
                 register(document.entry, document.content, document.mode, document.charset)
+                checkForDraft(document.entry.id, document.content)
                 selectDocument(document.entry.id)
             } catch (exception: CancellationException) {
                 throw exception
@@ -274,7 +284,12 @@ class EditorViewModel(
         current.viewState.cursor = input.engine.cursor
         current.viewState.selection = input.engine.selection
         publish(if (textChanged) derive(updated) else updated)
-        if (textChanged) scheduleSearch(input.engine.document.id)
+        if (textChanged) {
+            scheduleSearch(input.engine.document.id)
+            if (input.engine.document.dirty) {
+                scheduleDraft(input.engine.document.id)
+            }
+        }
     }
 
     fun setMode(mode: FileMode) {
@@ -505,6 +520,7 @@ class EditorViewModel(
                 try {
                     saveCopy(snapshot.document.id, snapshot.content)
                     snapshot.document.markSaved(snapshot.revision)
+                    draftRepository?.removeDraft(snapshot.document.id)
                     mutableState.value = state.value.copy(
                         dirty = state.value.inputSession?.engine?.document?.dirty ?: false, tabs = tabs())
                 } catch (exception: CancellationException) {
@@ -537,7 +553,10 @@ class EditorViewModel(
         viewModelScope.launch {
             try {
                 saveCopy(destination, snapshot.content, snapshot.charset)
-                if (destination == snapshot.document.id) snapshot.document.markSaved(snapshot.revision)
+                if (destination == snapshot.document.id) {
+                    snapshot.document.markSaved(snapshot.revision)
+                    draftRepository?.removeDraft(destination)
+                }
                 savingDocument = null
                 val activeDirty = state.value.inputSession?.engine?.document?.dirty ?: false
                 mutableState.value = state.value.copy(saving = false, dirty = activeDirty, tabs = tabs(),
@@ -612,7 +631,10 @@ class EditorViewModel(
     }
     fun discardAndClose() {
         val id = state.value.pendingClose ?: return
-        if (savingDocument?.id != id) removeDocument(id)
+        if (savingDocument?.id != id) {
+            draftRepository?.removeDraft(id)
+            removeDocument(id)
+        }
     }
     fun saveAndClose() { saveDocument(state.value.pendingClose ?: return, closeAfter = true) }
 
@@ -620,6 +642,8 @@ class EditorViewModel(
         val keys = documents.keys.toList()
         val index = keys.indexOf(id)
         if (index < 0) return
+        draftJobs.remove(id)?.cancel()
+        draftRepository?.removeDraft(id)
         documents.remove(id)
         searchJobs.remove(id)?.cancel()
         val current = state.value
@@ -661,4 +685,114 @@ class EditorViewModel(
         return current.copy(lineStarts = starts,
             lineNumbers = if (lines) (1..starts.size.coerceAtMost(1_000)).joinToString("\n") else current.lineNumbers)
     }
+
+    private fun checkForDraft(id: DocumentId, diskContent: String) {
+        val draft = draftRepository?.loadDraft(id) ?: return
+        if (draft.content == diskContent) {
+            draftRepository.removeDraft(id)
+        } else {
+            documents[id]?.let { doc ->
+                documents[id] = doc.copy(recoveredDraft = draft)
+            }
+        }
+    }
+
+    private fun scheduleDraft(id: DocumentId) {
+        if (draftRepository == null) return
+        draftJobs.remove(id)?.cancel()
+        draftJobs[id] = viewModelScope.launch {
+            delay(600)
+            saveDraftForDocument(id)
+        }
+    }
+
+    private fun saveDraftForDocument(id: DocumentId) {
+        val repo = draftRepository ?: return
+        val opened = documents[id] ?: return
+        val input = opened.inputSession ?: return
+        val doc = input.engine.document
+        if (!doc.dirty) return
+        val content = doc.buffer.getText(0, doc.buffer.length).toString()
+        repo.saveDraft(
+            DocumentDraft(
+                documentId = id,
+                content = content,
+                timestamp = System.currentTimeMillis(),
+                cursorAnchor = input.anchor,
+                cursorActive = input.active,
+                scrollX = opened.viewState.scrollX,
+                scrollY = opened.viewState.scrollY,
+                charset = opened.charset
+            )
+        )
+    }
+
+    fun flushAllDrafts() {
+        val repo = draftRepository ?: return
+        draftJobs.values.forEach { it.cancel() }
+        draftJobs.clear()
+        documents.forEach { (id, opened) ->
+            val input = opened.inputSession ?: return@forEach
+            val doc = input.engine.document
+            if (doc.dirty) {
+                val content = doc.buffer.getText(0, doc.buffer.length).toString()
+                repo.saveDraft(
+                    DocumentDraft(
+                        documentId = id,
+                        content = content,
+                        timestamp = System.currentTimeMillis(),
+                        cursorAnchor = input.anchor,
+                        cursorActive = input.active,
+                        scrollX = opened.viewState.scrollX,
+                        scrollY = opened.viewState.scrollY,
+                        charset = opened.charset
+                    )
+                )
+            }
+        }
+    }
+
+    fun restoreDraft() {
+        val draft = state.value.recoveredDraft ?: return
+        val input = state.value.inputSession ?: return
+        val id = state.value.entry?.id ?: return
+
+        val fullRange = CoreTextRange(TextOffset(0), TextOffset(input.buffer.length))
+        input.execute(ReplaceTextCommand(fullRange, draft.content))
+        input.setSelection(
+            draft.cursorAnchor.coerceIn(0, draft.content.length),
+            draft.cursorActive.coerceIn(0, draft.content.length)
+        )
+        val latest = documents[id] ?: state.value
+        latest.viewState.scrollX = draft.scrollX
+        latest.viewState.scrollY = draft.scrollY
+
+        val updated = latest.copy(
+            recoveredDraft = null,
+            charset = draft.charset,
+            dirty = input.engine.document.dirty,
+            message = "Borrador restaurado correctamente."
+        )
+        documents[id] = updated.copy(tabs = emptyList())
+        mutableState.value = updated.copy(tabs = tabs())
+        scheduleCheckpoint()
+    }
+
+    fun discardRecoveredDraft() {
+        val current = state.value
+        val id = current.entry?.id ?: return
+        draftRepository?.removeDraft(id)
+        val updated = current.copy(
+            recoveredDraft = null,
+            message = "Borrador descartado."
+        )
+        documents[id] = updated.copy(tabs = emptyList())
+        mutableState.value = updated.copy(tabs = tabs())
+    }
+
+    override fun onCleared() {
+        super.onCleared()
+        flushAllDrafts()
+    }
+
 }

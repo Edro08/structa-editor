@@ -142,7 +142,9 @@ fun EditorScreen(state: EditorUiState, onBack: () -> Unit, onExplore: () -> Unit
     onCloseAll: () -> Unit = {}, onCloseOthers: () -> Unit = {},
     onGoToStart: () -> Unit = {}, onGoToEnd: () -> Unit = {}, onSaveAll: () -> Unit = {},
     onGlobalSearch: () -> Unit = {},
-    onToggleEditable: () -> Unit = {}) {
+    onToggleEditable: () -> Unit = {},
+    onRestoreDraft: () -> Unit = {},
+    onDiscardDraft: () -> Unit = {}) {
     var showSearch by rememberSaveable { mutableStateOf(false) }
     var showReplace by rememberSaveable { mutableStateOf(false) }
     var showFileMenu by remember { mutableStateOf(false) }
@@ -356,6 +358,12 @@ fun EditorScreen(state: EditorUiState, onBack: () -> Unit, onExplore: () -> Unit
         Column(Modifier.fillMaxSize().padding(padding).imePadding()) {
              if (state.tabs.size > 1) {
                  EditorTabStrip(state.tabs, onSelectDocument, onCloseDocument)
+             }
+             if (state.recoveredDraft != null) {
+                 DraftRecoveryBanner(
+                     onRestore = onRestoreDraft,
+                     onDiscard = onDiscardDraft
+                 )
              }
             if (state.loading) {
                 LinearProgressIndicator(Modifier.fillMaxWidth())
@@ -1277,4 +1285,82 @@ private fun SaveAsDialog(
             }
         }
     )
+}
+
+
+@Composable
+fun DraftRecoveryBanner(
+    onRestore: () -> Unit,
+    onDiscard: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Surface(
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(horizontal = 12.dp, vertical = 6.dp),
+        shape = RoundedCornerShape(12.dp),
+        color = Color(0xFF141418),
+        border = BorderStroke(1.dp, StatusOrange.copy(alpha = 0.5f)),
+        tonalElevation = 2.dp
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(12.dp)
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Icon(
+                    imageVector = Icons.Filled.WarningAmber,
+                    contentDescription = null,
+                    tint = StatusOrange,
+                    modifier = Modifier.size(20.dp)
+                )
+                Spacer(Modifier.width(8.dp))
+                Text(
+                    text = stringResource(R.string.draft_recovery_title),
+                    style = MaterialTheme.typography.titleSmall,
+                    color = Color.White,
+                    fontWeight = FontWeight.SemiBold
+                )
+            }
+            Spacer(Modifier.height(4.dp))
+            Text(
+                text = stringResource(R.string.draft_recovery_desc),
+                style = MaterialTheme.typography.bodySmall,
+                color = DarkTextSecondary
+            )
+            Spacer(Modifier.height(8.dp))
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.End,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                TextButton(
+                    onClick = onDiscard,
+                    colors = ButtonDefaults.textButtonColors(contentColor = DarkTextSecondary)
+                ) {
+                    Text(stringResource(R.string.draft_recovery_discard), style = MaterialTheme.typography.labelMedium)
+                }
+                Spacer(Modifier.width(8.dp))
+                Button(
+                    onClick = onRestore,
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = StructaPurple,
+                        contentColor = Color.White
+                    ),
+                    shape = RoundedCornerShape(8.dp),
+                    contentPadding = PaddingValues(horizontal = 14.dp, vertical = 6.dp)
+                ) {
+                    Text(
+                        stringResource(R.string.draft_recovery_restore),
+                        style = MaterialTheme.typography.labelMedium,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+            }
+        }
+    }
 }

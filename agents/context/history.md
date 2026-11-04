@@ -1,5 +1,33 @@
 # Historial de Structa
 
+## 2026-11-03 — Fase 18: Robustez Móvil y Persistencia (Draft Crash Recovery)
+
+- **Arquitectura de Dominio Desacoplada (`DocumentDraft`, `DraftRepository`)**:
+  - Definición del modelo de datos inmutable `DocumentDraft` en `com.edro08.structa.domain.editor.draft` con metadatos completos de sesión (`documentId`, `content`, `timestamp`, `cursorAnchor`, `cursorActive`, `scrollX`, `scrollY`, `charset`), cumpliendo estrictamente con `agents/specs/architecture.md` (cero dependencias de Android).
+  - Interfaz `DraftRepository` con operaciones de almacenamiento, lectura, listado y limpieza atómica de borradores.
+- **Persistencia Segura y Atómica en Disco (`FileDraftRepository`)**:
+  - Implementación en `data/draft/FileDraftRepository` utilizando hash SHA-256 de los identificadores de documento para soporte de nombres arbitrarios y URIs complejas sin colisiones de nombres en el sistema de archivos.
+  - Escritura a prueba de fallos mediante archivos temporales `.tmp` y renombrado atómico a `.draft`, evitando archivos parciales o corrompidos durante cortes de energía o cierres forzados del SO.
+  - Formato de serialización basado en cabecera con delimitador de contenido directo, eliminando dependencias externas de serialización y stubs en pruebas unitarias de JVM.
+- **Gestión Reactiva en ViewModel y Ciclo de Vida (`EditorViewModel`, `StructaApp`)**:
+  - Guardado en segundo plano con debounce de 600 ms tras mutaciones de texto (`syncInput`) sobre documentos sucios.
+  - Detección inteligente al abrir o restaurar documentos (`checkForDraft`): compara el contenido del borrador con el archivo en disco; si son idénticos lo descarta automáticamente, y si difieren activa el estado `recoveredDraft`.
+  - Acciones de usuario `restoreDraft()` (reemplaza texto con comando invertible, marca estado sucio y restaura cursores y desplazamiento) y `discardRecoveredDraft()` (elimina el borrador de disco de inmediato).
+  - Limpieza automática de borradores al guardar exitosamente el archivo (`writeSnapshot`, `saveAll`) o descartar cambios.
+  - Enjuague inmediato de borradores pendientes (`flushAllDrafts()`) ante checkpoints de sesión y eventos de ciclo de vida de la actividad (`Lifecycle.Event.ON_STOP`, `onDispose` y `onCleared`).
+- **Notificaciones Flotantes Estilo Vaultk (`MessageOverlay`)**:
+  - Rediseño completo del toast/notificación flotante inferior inspirándose en `VaultkNotificationCard`:
+    - Forma en píldora con esquinas redondeadas (`20.dp`), elevación (`6.dp`), borde `outlineVariant` y fondo oscuro `surfaceContainerHigh`.
+    - Icono de estado en el lateral izquierdo: círculo de check verde esmeralda (`#44DB98`) para guardado exitoso y restauración; icono de advertencia (`StatusOrange`) o error (`StatusRed`) según corresponda.
+    - Botón de cierre minimalista con icono circular `X` (`18.dp`), eliminando el botón de texto tosco.
+    - Auto-descarte inteligente tras 3.5 segundos con soporte para cierre manual inmediato.
+- **Banner Pure OLED en Editor (`DraftRecoveryBanner`, `EditorScreen`)**:
+  - Componente de notificación no intrusivo en el visor/editor con diseño Pure OLED (`#141418`, borde sutil ámbar `StatusOrange` al 50% e icono de advertencia).
+  - Acciones claras en 1 toque: botón primario «Restaurar» con estilo `StructaPurple` y botón de texto «Descartar».
+- **Verificación**:
+  - Suite de 221 pruebas unitarias JVM aprobadas (`:app:testDebugUnitTest`), incorporando 7 pruebas de repositorio de archivos (`FileDraftRepositoryTest`) y 7 pruebas de ciclo de vida y recuperación (`EditorDraftRecoveryTest`).
+  - Verificación en emulador Android en vivo (`Pixel 9 Pro` / API 35): edición de archivo, force stop mediante `am force-stop`, reapertura de app con detección inmediata del banner de recuperación, restauración con 1 toque con cursores intactos y eliminación del borrador tras guardar.
+
 ## 2026-11-02 — Mejoras en Renderizador Markdown: Tablas GFM y Formatos Anidados
 
 - **Formato Anidado en Spans (MarkdownModel, MarkdownParser, MarkdownViewer)**:

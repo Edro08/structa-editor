@@ -83,4 +83,10 @@
     <string name="editor_mode_rendered">Renderizado</string>
     <string name="editor_action_view_raw">Ver código fuente</string>
     <string name="editor_action_view_rendered">Ver vista limpia</string>
+    <string name="draft_recovery_title">Borrador sin guardar recuperado</string>
+    <string name="draft_recovery_desc">Se encontraron cambios que no se guardaron antes del cierre de la app.</string>
+    <string name="draft_recovery_restore">Restaurar</string>
+    <string name="draft_recovery_discard">Descartar</string>
+    <string name="draft_recovered_message">Borrador restaurado correctamente.</string>
+    <string name="draft_discarded_message">Borrador descartado.</string>
 </resources>
