@@ -24,12 +24,12 @@
 ## 2026-11-04 — Fase 21 (Paso 2): Hardening de Backup y Reglas de Extracción de Datos
 
 - **Protección de Datos Privados y Borradores (`backup_rules.xml` & `data_extraction_rules.xml`)**:
-  - Configurada exclusión explícita del directorio privado de borradores (`domain="file" path="drafts"`), previniendo que notas temporales, credenciales, tokens o código confidencial no guardado se envíen a la nube de Google Backup.
-  - Habilitada inclusión explícita únicamente de preferencias (`sharedpref`) para conservar ajustes de tema y tipografía entre dispositivos de forma segura.
+  - Configurada inclusión estricta únicamente de preferencias (`sharedpref`) para conservar ajustes de tema y tipografía de forma segura, excluyendo automáticamente por diseño cualquier archivo de almacenamiento interno (`files/drafts`, cachés y bases de datos).
+  - Cumplimiento total de validación estricta de Android Lint (`lintVitalRelease`).
 - **Defensa en Profundidad en el Manifiesto (`AndroidManifest.xml`)**:
   - Declarado `android:usesCleartextTraffic="false"` a nivel de aplicación para garantizar que ningún componente o librería de terceros pueda ejecutar tráfico HTTP sin cifrar.
 - **Verificación**:
-  - Validación del manifiesto y reglas XML superada (`:app:testDebugUnitTest`).
+  - Validación del manifiesto, reglas XML y compilación de release superada (`:app:testDebugUnitTest`, `:app:assembleRelease`).
 
 ## 2026-11-04 — Fase 21 (Paso 1): Detección y Blindaje contra Archivos Binarios
 
