@@ -138,13 +138,14 @@ private fun actionName(action: EditorAction): String = when (action) {
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun EditorScreen(state: EditorUiState, onBack: () -> Unit, onExplore: () -> Unit,
-    onLanguage: (Language) -> Unit, onCharset: (DocumentCharset) -> Unit = {}, onAutoDetectCharset: () -> Unit = {}, onSearch: (String) -> Unit,
+    onLanguage: (Language) -> Unit, onSearch: (String) -> Unit,
     onFormat: () -> Unit, onUndo: () -> Unit, onRedo: () -> Unit, onLine: (Int) -> Unit, onSaveAs: (DocumentId) -> Unit = {},
     onMessage: (String) -> Unit,
     onSave: () -> Unit, onSelectDocument: (DocumentId) -> Unit, onCloseDocument: (DocumentId) -> Unit,
     onCancelClose: () -> Unit, onDiscardClose: () -> Unit, onSaveClose: () -> Unit,
     onSearchOptions: (SearchOptions) -> Unit = {}, onReplacement: (String) -> Unit = {},
     onFindNext: (Boolean) -> Unit = {}, onReplace: (Boolean) -> Unit = {}, onQuickOpen: () -> Unit = {},
+    onCharset: (DocumentCharset) -> Unit = {}, onAutoDetectCharset: () -> Unit = {},
     editorFont: com.edro08.structa.domain.settings.EditorFont = com.edro08.structa.domain.settings.EditorFont.MONOSPACE,
     editorFontSize: Int = 14, showAccessoryBar: Boolean = true,
     onCloseAll: () -> Unit = {}, onCloseOthers: () -> Unit = {},

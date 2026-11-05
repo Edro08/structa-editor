@@ -1,5 +1,18 @@
 # Historial de Structa
 
+## 2026-11-04 — Depuración de Vestigios SAF y Migración a 100% Kotlin
+
+- **Eliminación Definitiva de Residuos SAF (`app/src/androidTest/`)**:
+  - Eliminados los archivos Java huérfanos que quedaron tras la remoción de SAF: `TestDocumentsProvider.java` y `GrantTestDocumentsReceiver.java`.
+  - Depurado el manifiesto de pruebas instrumentadas ([`AndroidManifest.xml`](file:///d:/Projects/Android/Structa/app/src/androidTest/AndroidManifest.xml)), removiendo el receptor y proveedor de SAF.
+- **Migración a Kotlin Idiomático**:
+  - Convertido `TestSharedFileProvider.java` a [`TestSharedFileProvider.kt`](file:///d:/Projects/Android/Structa/app/src/androidTest/java/com/edro08/structa/ui/editor/TestSharedFileProvider.kt), utilizado para pruebas de apertura externa (`content://` vía `ACTION_VIEW`).
+  - El repositorio ahora cuenta con **0 archivos `.java`** y es **100% Kotlin**.
+- **Ajuste de Firma en `EditorScreen`**:
+  - Reorganizado el orden de parámetros opcionales en [`EditorScreen.kt`](file:///d:/Projects/Android/Structa/app/src/main/java/com/edro08/structa/ui/screen/editor/EditorScreen.kt) (`onCharset` y `onAutoDetectCharset`) para preservar la retrocompatibilidad con llamadas posicionales en pruebas instrumentadas.
+- **Verificación**:
+  - Pruebas unitarias (`:app:testDebugUnitTest`) y empaquetado de tests instrumentados (`:app:assembleDebugAndroidTest`) compilados exitosamente sin errores.
+
 ## 2026-11-04 — Fase 20: Rediseño de Colores para el Tema Claro (Snow & Slate) y Accesibilidad WCAG AAA
 
 - **Auditoría y Corrección de Contraste en Modo Claro (`MarkdownViewer.kt`)**:
