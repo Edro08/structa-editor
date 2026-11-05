@@ -513,7 +513,7 @@ class EditorViewModel(
             val document = input.engine.document
             if (!document.dirty) return@mapNotNull null
             SaveSnapshot(opened.entry!!.name, document.buffer.getText(0, document.buffer.length).toString(),
-                document, document.revision)
+                document, document.revision, opened.charset)
         }
         if (snapshots.isEmpty()) return
         mutableState.value = state.value.copy(saving = true, message = null)
@@ -521,7 +521,7 @@ class EditorViewModel(
             var failure: Exception? = null
             for (snapshot in snapshots) {
                 try {
-                    saveCopy(snapshot.document.id, snapshot.content)
+                    saveCopy(snapshot.document.id, snapshot.content, snapshot.charset)
                     snapshot.document.markSaved(snapshot.revision)
                     draftRepository?.removeDraft(snapshot.document.id)
                     mutableState.value = state.value.copy(
@@ -546,7 +546,7 @@ class EditorViewModel(
         opened.inputSession!!.finishComposingText()
         val document = opened.inputSession.engine.document
         val snapshot = SaveSnapshot(opened.entry!!.name,
-            document.buffer.getText(0, document.buffer.length).toString(), document, document.revision)
+            document.buffer.getText(0, document.buffer.length).toString(), document, document.revision, opened.charset)
         writeSnapshot(snapshot, id, closeAfter)
     }
 

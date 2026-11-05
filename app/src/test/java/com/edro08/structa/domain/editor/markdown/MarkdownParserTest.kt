@@ -200,4 +200,11 @@ class MarkdownParserTest {
     fun parseEmptyString_returnsEmptyList() {
         assertTrue(MarkdownParser.parse("").isEmpty())
     }
+
+    @Test
+    fun deeplyNestedInlineTags_areBoundedWithoutStackOverflow() {
+        val nested = "<b>".repeat(30) + "texto" + "</b>".repeat(30)
+        val spans = MarkdownParser.parseInline(nested)
+        assertTrue(spans.isNotEmpty())
+    }
 }

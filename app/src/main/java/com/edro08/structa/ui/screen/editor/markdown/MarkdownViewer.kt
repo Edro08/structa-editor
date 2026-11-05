@@ -67,20 +67,20 @@ fun MarkdownViewer(
             itemsIndexed(nodes) { _, node ->
                 when (node) {
                     is MarkdownNode.Heading -> MarkdownHeadingItem(node) { url ->
-                        try { uriHandler.openUri(url) } catch (_: Exception) {}
+                        safeOpenUri(uriHandler, url)
                     }
                     is MarkdownNode.Paragraph -> MarkdownParagraphItem(node) { url ->
-                        try { uriHandler.openUri(url) } catch (_: Exception) {}
+                        safeOpenUri(uriHandler, url)
                     }
                     is MarkdownNode.CodeBlock -> MarkdownCodeBlockItem(node)
                     is MarkdownNode.BulletItem -> MarkdownBulletItem(node) { url ->
-                        try { uriHandler.openUri(url) } catch (_: Exception) {}
+                        safeOpenUri(uriHandler, url)
                     }
                     is MarkdownNode.NumberedItem -> MarkdownNumberedItem(node) { url ->
-                        try { uriHandler.openUri(url) } catch (_: Exception) {}
+                        safeOpenUri(uriHandler, url)
                     }
                     is MarkdownNode.Blockquote -> MarkdownBlockquoteItem(node) { url ->
-                        try { uriHandler.openUri(url) } catch (_: Exception) {}
+                        safeOpenUri(uriHandler, url)
                     }
                     is MarkdownNode.ThematicBreak -> {
                         HorizontalDivider(
@@ -90,7 +90,7 @@ fun MarkdownViewer(
                         )
                     }
                     is MarkdownNode.Table -> MarkdownTableItem(node) { url ->
-                        try { uriHandler.openUri(url) } catch (_: Exception) {}
+                        safeOpenUri(uriHandler, url)
                     }
                 }
             }
@@ -725,6 +725,16 @@ private fun parseColorString(colorStr: String): Color? {
                 }
             } else null
         }
+    }
+}
+
+private fun safeOpenUri(uriHandler: androidx.compose.ui.platform.UriHandler, rawUrl: String) {
+    val trimmed = rawUrl.trim()
+    val lower = trimmed.lowercase()
+    if (lower.startsWith("https://") || lower.startsWith("http://") || lower.startsWith("mailto:")) {
+        try {
+            uriHandler.openUri(trimmed)
+        } catch (_: Exception) {}
     }
 }
 

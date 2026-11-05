@@ -211,8 +211,11 @@ object MarkdownParser {
      * Parses inline spans (plain text, bold, italic, bold+italic, colored, inline code, links) within a string.
      * Supports nested inline spans (e.g. inline code inside bold/italic/colors).
      */
-    fun parseInline(text: String): List<MarkdownSpan> {
+    private const val MAX_INLINE_DEPTH = 8
+
+    fun parseInline(text: String, depth: Int = 0): List<MarkdownSpan> {
         if (text.isEmpty()) return emptyList()
+        if (depth > MAX_INLINE_DEPTH) return listOf(MarkdownSpan.Text(text))
 
         val spans = mutableListOf<MarkdownSpan>()
         var lastIndex = 0
@@ -244,20 +247,20 @@ object MarkdownParser {
 
             when {
                 code.isNotEmpty() -> spans.add(MarkdownSpan.InlineCode(code))
-                linkText.isNotEmpty() -> spans.add(MarkdownSpan.Link(linkText, linkUrl, parseChildrenIfPresent(linkText)))
-                spanColor.isNotEmpty() -> spans.add(MarkdownSpan.Colored(spanText, spanColor, parseChildrenIfPresent(spanText)))
-                fontColor.isNotEmpty() -> spans.add(MarkdownSpan.Colored(fontText, fontColor, parseChildrenIfPresent(fontText)))
-                bText.isNotEmpty() -> spans.add(MarkdownSpan.Bold(bText, parseChildrenIfPresent(bText)))
-                strongText.isNotEmpty() -> spans.add(MarkdownSpan.Bold(strongText, parseChildrenIfPresent(strongText)))
-                iText.isNotEmpty() -> spans.add(MarkdownSpan.Italic(iText, parseChildrenIfPresent(iText)))
-                emText.isNotEmpty() -> spans.add(MarkdownSpan.Italic(emText, parseChildrenIfPresent(emText)))
+                linkText.isNotEmpty() -> spans.add(MarkdownSpan.Link(linkText, linkUrl, parseChildrenIfPresent(linkText, depth + 1)))
+                spanColor.isNotEmpty() -> spans.add(MarkdownSpan.Colored(spanText, spanColor, parseChildrenIfPresent(spanText, depth + 1)))
+                fontColor.isNotEmpty() -> spans.add(MarkdownSpan.Colored(fontText, fontColor, parseChildrenIfPresent(fontText, depth + 1)))
+                bText.isNotEmpty() -> spans.add(MarkdownSpan.Bold(bText, parseChildrenIfPresent(bText, depth + 1)))
+                strongText.isNotEmpty() -> spans.add(MarkdownSpan.Bold(strongText, parseChildrenIfPresent(strongText, depth + 1)))
+                iText.isNotEmpty() -> spans.add(MarkdownSpan.Italic(iText, parseChildrenIfPresent(iText, depth + 1)))
+                emText.isNotEmpty() -> spans.add(MarkdownSpan.Italic(emText, parseChildrenIfPresent(emText, depth + 1)))
                 codeHtmlText.isNotEmpty() -> spans.add(MarkdownSpan.InlineCode(codeHtmlText))
-                boldItalic1.isNotEmpty() -> spans.add(MarkdownSpan.BoldItalic(boldItalic1, parseChildrenIfPresent(boldItalic1)))
-                boldItalic2.isNotEmpty() -> spans.add(MarkdownSpan.BoldItalic(boldItalic2, parseChildrenIfPresent(boldItalic2)))
-                bold1.isNotEmpty() -> spans.add(MarkdownSpan.Bold(bold1, parseChildrenIfPresent(bold1)))
-                bold2.isNotEmpty() -> spans.add(MarkdownSpan.Bold(bold2, parseChildrenIfPresent(bold2)))
-                italic1.isNotEmpty() -> spans.add(MarkdownSpan.Italic(italic1, parseChildrenIfPresent(italic1)))
-                italic2.isNotEmpty() -> spans.add(MarkdownSpan.Italic(italic2, parseChildrenIfPresent(italic2)))
+                boldItalic1.isNotEmpty() -> spans.add(MarkdownSpan.BoldItalic(boldItalic1, parseChildrenIfPresent(boldItalic1, depth + 1)))
+                boldItalic2.isNotEmpty() -> spans.add(MarkdownSpan.BoldItalic(boldItalic2, parseChildrenIfPresent(boldItalic2, depth + 1)))
+                bold1.isNotEmpty() -> spans.add(MarkdownSpan.Bold(bold1, parseChildrenIfPresent(bold1, depth + 1)))
+                bold2.isNotEmpty() -> spans.add(MarkdownSpan.Bold(bold2, parseChildrenIfPresent(bold2, depth + 1)))
+                italic1.isNotEmpty() -> spans.add(MarkdownSpan.Italic(italic1, parseChildrenIfPresent(italic1, depth + 1)))
+                italic2.isNotEmpty() -> spans.add(MarkdownSpan.Italic(italic2, parseChildrenIfPresent(italic2, depth + 1)))
             }
 
             lastIndex = match.range.last + 1
@@ -270,11 +273,12 @@ object MarkdownParser {
         return spans
     }
 
-    private fun parseChildrenIfPresent(raw: String): List<MarkdownSpan> {
+    private fun parseChildrenIfPresent(raw: String, depth: Int): List<MarkdownSpan> {
+        if (depth >= MAX_INLINE_DEPTH) return emptyList()
         if (!raw.contains("`") && !raw.contains("*") && !raw.contains("_") && !raw.contains("<") && !raw.contains("[")) {
             return emptyList()
         }
-        val children = parseInline(raw)
+        val children = parseInline(raw, depth)
         return if (children.size == 1 && children[0] is MarkdownSpan.Text) emptyList() else children
     }
 

@@ -70,4 +70,17 @@ class DirectFileSystemTest {
             assertTrue(exception.message?.contains("binario") == true)
         }
     }
+
+    @Test fun atomicWritePreservesCharsetAndCleansTempFiles() {
+        runBlocking {
+            val fs = DirectFileSystem()
+            val root = DocumentId(temporary.root.canonicalPath)
+            val target = fs.create(root, "utf16.txt", false)
+            fs.writeWithCharset(target.id, "Hola Mundo", com.edro08.structa.domain.editor.encoding.DocumentCharset.UTF_16_LE)
+            val decoded = fs.readWithCharset(fs.stat(target.id), null)
+            assertEquals("Hola Mundo", decoded.text)
+            assertEquals(com.edro08.structa.domain.editor.encoding.DocumentCharset.UTF_16_LE, decoded.charset)
+            assertTrue(temporary.root.listFiles().orEmpty().none { it.name.endsWith(".tmp") })
+        }
+    }
 }

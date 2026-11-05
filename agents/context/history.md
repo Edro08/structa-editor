@@ -1,5 +1,29 @@
 # Historial de Structa
 
+## 2026-11-04 — Fase 22: Auditoría de Seguridad SAST, R8 Release Optimization y Hardening Integral
+
+- **Activación de R8 y Reducción de Recursos en Release ([`app/build.gradle.kts`](file:///d:/Projects/Android/Structa/app/build.gradle.kts), [`app/proguard-rules.pro`](file:///d:/Projects/Android/Structa/app/proguard-rules.pro))**:
+  - Habilitado `isMinifyEnabled = true` y `isShrinkResources = true` en el build type `release` (manteniendo intencionalmente la firma `debug` para pruebas locales).
+  - Creado `app/proguard-rules.pro` preservando los nombres y miembros de `enum` (`DocumentCharset`, `EditorFont`, `Screen`) requeridos para persistencia en `SharedPreferences` y borradores.
+- **Soporte Seguro de Documentos Externos `content://` (`VULN-02` — [`ExternalDocument.kt`](file:///d:/Projects/Android/Structa/app/src/main/java/com/edro08/structa/data/filesystem/ExternalDocument.kt), [`DirectFileSystem.kt`](file:///d:/Projects/Android/Structa/app/src/main/java/com/edro08/structa/data/filesystem/direct/DirectFileSystem.kt), [`StructaApp.kt`](file:///d:/Projects/Android/Structa/app/src/main/java/com/edro08/structa/app/StructaApp.kt))**:
+  - Validación de autoridad en URIs entrantes para bloquear auto-referencias al propio `FileProvider` (`${packageName}.fileprovider`).
+  - Lectura acotada (`MAX_EDITABLE_BYTES`), detección de binarios y escritura mediante `ContentResolver` integradas en `DirectFileSystem`.
+  - Mínimo privilegio en `takePersistableUriPermission`: solo solicita permiso de escritura cuando la acción del Intent es `ACTION_EDIT`.
+- **Unificación de Validación Canónica en Diálogos UI (`VULN-03` — [`EditorScreen.kt`](file:///d:/Projects/Android/Structa/app/src/main/java/com/edro08/structa/ui/screen/editor/EditorScreen.kt), [`FolderPickerDialog.kt`](file:///d:/Projects/Android/Structa/app/src/main/java/com/edro08/structa/ui/screen/editor/FolderPickerDialog.kt))**:
+  - `SaveAsDialog` y `FolderPickerDialog` ahora validan nombres mediante `DirectFileSystem.isValidName()` y verifican contención canónica del directorio padre, impidiendo saltos con `..` o symlinks.
+  - En `FolderPickerDialog`, el filtro de `data`/`obb` se aplica únicamente dentro de `Android/`, permitiendo ver carpetas `data` legítimas en proyectos del usuario, y `canGoUp` queda acotado a la raíz del volumen activo.
+- **Escritura Atómica y Preservación de Codificación (`VULN-04` — [`DirectFileSystem.kt`](file:///d:/Projects/Android/Structa/app/src/main/java/com/edro08/structa/data/filesystem/direct/DirectFileSystem.kt), [`EditorViewModel.kt`](file:///d:/Projects/Android/Structa/app/src/main/java/com/edro08/structa/ui/screen/editor/EditorViewModel.kt), [`SearchWorkspace.kt`](file:///d:/Projects/Android/Structa/app/src/main/java/com/edro08/structa/application/search/SearchWorkspace.kt))**:
+  - `DirectFileSystem.writeWithCharset()` escribe primero en un archivo temporal `.tmp` con `fd.sync()` y renombra atómicamente sobre el destino, evitando truncamiento en caso de fallo.
+  - `EditorViewModel.save()` y `saveAll()` propagan `opened.charset` en `SaveSnapshot`.
+  - `SearchWorkspace.replaceInFiles()` preserva tanto el `DocumentCharset` original como el estilo de salto de línea (`CRLF` vs `LF`).
+- **Aislamiento de `FileProvider`, Backups y Parsers (`VULN-05`, `HARD-01..03`)**:
+  - [`file_paths.xml`](file:///d:/Projects/Android/Structa/app/src/main/res/xml/file_paths.xml): removidos `<files-path>` y `<cache-path>` para no exponer `files/drafts`.
+  - [`backup_rules.xml`](file:///d:/Projects/Android/Structa/app/src/main/res/xml/backup_rules.xml) y [`data_extraction_rules.xml`](file:///d:/Projects/Android/Structa/app/src/main/res/xml/data_extraction_rules.xml): restringidos exclusivamente a `structa.xml` (ajustes de apariencia), excluyendo rutas de sesión e historial.
+  - [`MarkdownViewer.kt`](file:///d:/Projects/Android/Structa/app/src/main/java/com/edro08/structa/ui/screen/editor/markdown/MarkdownViewer.kt) y [`MarkdownParser.kt`](file:///d:/Projects/Android/Structa/app/src/main/java/com/edro08/structa/domain/editor/markdown/MarkdownParser.kt): lista blanca de esquemas (`https`, `http`, `mailto`) y cota de recursión inline (`MAX_INLINE_DEPTH = 8`).
+  - [`FileDraftRepository.kt`](file:///d:/Projects/Android/Structa/app/src/main/java/com/edro08/structa/data/draft/FileDraftRepository.kt): sanitización de saltos de línea en `ID` de cabecera y límite de tamaño al cargar archivos `.draft`.
+- **Verificación**:
+  - 229 pruebas unitarias JVM (`:app:testDebugUnitTest`), compilación de tests instrumentados (`:app:compileDebugAndroidTestKotlin`), `lintVitalRelease` y empaquetado con R8 (`:app:assembleRelease`) aprobados sin errores.
+
 ## 2026-11-04 — Fase 21 (Paso 4): Acción «Compartir archivo» con FileProvider Seguro
 
 - **Acción Compartir Integrada en el Editor (`EditorScreen.kt` & `StructaApp.kt`)**:

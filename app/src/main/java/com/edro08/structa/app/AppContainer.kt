@@ -45,7 +45,7 @@ import com.edro08.structa.ui.screen.settings.SettingsViewModel
 
 class AppContainer(context: Context) {
 
-    val fileSystem = DirectFileSystem()
+    val fileSystem = DirectFileSystem(context.applicationContext)
 
     val directoryReader = fileSystem
 

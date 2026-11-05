@@ -1,6 +1,7 @@
 package com.edro08.structa.data.draft
 
 import com.edro08.structa.domain.document.DocumentId
+import com.edro08.structa.domain.document.MAX_EDITABLE_BYTES
 import com.edro08.structa.domain.editor.draft.DocumentDraft
 import com.edro08.structa.domain.editor.draft.DraftRepository
 import com.edro08.structa.domain.editor.encoding.DocumentCharset
@@ -31,8 +32,9 @@ class FileDraftRepository(
 
         try {
             tempFile.bufferedWriter(Charsets.UTF_8).use { writer ->
+                val safeId = draft.documentId.value.replace("\r", "").replace("\n", "")
                 writer.write("VERSION:1\n")
-                writer.write("ID:${draft.documentId.value}\n")
+                writer.write("ID:$safeId\n")
                 writer.write("TIME:${draft.timestamp}\n")
                 writer.write("ANCHOR:${draft.cursorAnchor}\n")
                 writer.write("ACTIVE:${draft.cursorActive}\n")
@@ -80,6 +82,7 @@ class FileDraftRepository(
 
     private fun parseDraftFile(file: File): DocumentDraft? {
         if (!file.exists() || !file.isFile) return null
+        if (file.length() > MAX_EDITABLE_BYTES + 4096L) return null
         return try {
             val text = file.readText(Charsets.UTF_8)
             val marker = "\n---CONTENT---\n"

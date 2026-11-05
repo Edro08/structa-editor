@@ -141,6 +141,25 @@ Las fases **1–16** representan el desarrollo del motor base, arquitectura, erg
   - Opción «Compartir…» en el menú desplegable `Archivo` que lanza un selector nativo de Android (`Intent.ACTION_SEND`).
   - `FileProvider` oficial configurado con permisos temporales de lectura para adjuntar el archivo físico o enviar su contenido de texto.
 
+### Fase 22 — Auditoría de Seguridad SAST, R8 Release Optimization y Hardening Integral
+- **Activación de R8 y Reducción de Recursos en Release (`app/build.gradle.kts`, `app/proguard-rules.pro`)**:
+  - Habilitado `isMinifyEnabled = true` y `isShrinkResources = true` reduciendo el APK Release de 45.2 MB a 2.99 MB (~93% de reducción).
+  - Reglas de Proguard preservando enums críticos de configuración (`DocumentCharset`, `EditorFont`, `Screen`).
+- **Soporte Seguro de Documentos Externos `content://` (`VULN-02`)**:
+  - Bloqueo de auto-referencias al `FileProvider` propio para prevenir escalamiento de permisos o llamadas circulares.
+  - Lectura acotada a `MAX_EDITABLE_BYTES`, detección binaria y escritura transaccional mediante `ContentResolver`.
+  - Mínimo privilegio en `takePersistableUriPermission` solicitando permiso de escritura únicamente ante `ACTION_EDIT`.
+- **Validación Canónica en Diálogos UI (`VULN-03`)**:
+  - `SaveAsDialog` y `FolderPickerDialog` integran `DirectFileSystem.isValidName()` y validan contención en el padre canónico.
+- **Escritura Atómica y Preservación de Codificación (`VULN-04`)**:
+  - `DirectFileSystem.writeWithCharset()` escribe primero en `.tmp`, invoca `fd.sync()` y renombra atómicamente al destino.
+  - `save()`, `saveAll()` y `replaceInFiles()` preservan el charset original y el estilo de salto de línea (`CRLF` vs `LF`).
+- **Aislamiento de `FileProvider`, Backups y Parsers (`VULN-05`, `HARD-01..03`)**:
+  - `file_paths.xml`: removidos `<files-path>` y `<cache-path>`, protegiendo borradores internos.
+  - Backups acotados exclusivamente a `structa.xml` (ajustes UI).
+  - Markdown con lista blanca estricta de esquemas (`https`, `http`, `mailto`) y cota `MAX_INLINE_DEPTH = 8`.
+  - Sanitización de saltos de línea y límite de tamaño en `FileDraftRepository`.
+
 ---
 
 ---
@@ -164,6 +183,7 @@ Las fases **1–16** representan el desarrollo del motor base, arquitectura, erg
 | Ergonomía y Barra Secundaria (Fase 19) | 221 | 54 |
 | Rediseño Tema Claro WCAG AAA (Fase 20) | 221 | 54 |
 | Hardening y Compartir Archivo (Fase 21) | 225 | 54 |
+| Auditoría SAST, R8 y Hardening Integral (Fase 22) | 229 | 54 |
 
 Comandos de verificación en Windows PowerShell:
 ```powershell

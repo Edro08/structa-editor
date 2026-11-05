@@ -1513,7 +1513,7 @@ private fun SaveAsDialog(
                     val trimmedFolder = destinationFolder.trim()
                     if (trimmedFolder.isBlank()) {
                         errorMessage = "La carpeta de destino no puede estar vacía"
-                    } else if (trimmedName.isBlank() || trimmedName.contains('/') || trimmedName.contains('\\')) {
+                    } else if (!com.edro08.structa.data.filesystem.direct.DirectFileSystem.isValidName(trimmedName) || try { java.io.File(trimmedFolder, trimmedName).canonicalFile.parentFile?.canonicalPath != java.io.File(trimmedFolder).canonicalFile.canonicalPath } catch (_: Exception) { true }) {
                         errorMessage = "Nombre de archivo no válido"
                     } else {
                         onSave(trimmedFolder, trimmedName)
