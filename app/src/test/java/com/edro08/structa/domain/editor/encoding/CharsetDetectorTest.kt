@@ -97,4 +97,33 @@ class CharsetDetectorTest {
     fun detect_emptyBytes_returnsDefault() {
         assertEquals(DocumentCharset.DEFAULT, CharsetDetector.detect(byteArrayOf()))
     }
+
+    @Test
+    fun isBinary_returnsTrue_forNulBytes() {
+        val payload = byteArrayOf('H'.code.toByte(), 'e'.code.toByte(), 0x00, 'o'.code.toByte())
+        assertTrue(CharsetDetector.isBinary(payload))
+    }
+
+    @Test
+    fun isBinary_returnsTrue_forHighControlCharacterRatio() {
+        val payload = ByteArray(100) { index -> if (index < 30) 0x01.toByte() else 'A'.code.toByte() }
+        assertTrue(CharsetDetector.isBinary(payload))
+    }
+
+    @Test
+    fun isBinary_returnsFalse_forPlainText() {
+        val plain = "Este es un documento de texto plano válido con saltos de línea\ny tabulaciones\t!".toByteArray(StandardCharsets.UTF_8)
+        assertFalse(CharsetDetector.isBinary(plain))
+    }
+
+    @Test
+    fun isBinary_returnsFalse_forUtf16WithBom() {
+        val bomLe = byteArrayOf(0xFF.toByte(), 0xFE.toByte())
+        val textLe = "Hola mundo".toByteArray(StandardCharsets.UTF_16LE)
+        assertFalse(CharsetDetector.isBinary(bomLe + textLe))
+
+        val bomBe = byteArrayOf(0xFE.toByte(), 0xFF.toByte())
+        val textBe = "Hola mundo".toByteArray(StandardCharsets.UTF_16BE)
+        assertFalse(CharsetDetector.isBinary(bomBe + textBe))
+    }
 }

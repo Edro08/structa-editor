@@ -1,5 +1,16 @@
 # Historial de Structa
 
+## 2026-11-04 — Fase 21 (Paso 1): Detección y Blindaje contra Archivos Binarios
+
+- **Detección Automática de Carga Binaria (`CharsetDetector.kt`)**:
+  - Incorporada función de inspección profunda `CharsetDetector.isBinary(bytes: ByteArray)` sobre una ventana de muestreo de hasta 8 KB.
+  - Discrimina inteligentemente documentos UTF-16 legítimos (que poseen alternancia de bytes 0x00 con BOM) frente a ejecutables, imágenes, bases de datos o archivos comprimidos.
+  - Detecta bytes nulos `0x00` aislados y proporciones anómalas de caracteres de control (> 20%).
+- **Protección en Filesystem (`DirectFileSystem.kt`)**:
+  - `readWithCharset` rechaza la apertura de archivos binarios no solicitados explícitamente lanzando `IOException("El archivo parece ser binario y no puede editarse como texto.")`, protegiendo la memoria del editor y evitando la corrupción accidental de datos binarios al guardar.
+- **Verificación**:
+  - Pruebas unitarias dedicadas en `CharsetDetectorTest` y `DirectFileSystemTest` (225 tests aprobados).
+
 ## 2026-11-04 — Depuración de Vestigios SAF y Migración a 100% Kotlin
 
 - **Eliminación Definitiva de Residuos SAF (`app/src/androidTest/`)**:

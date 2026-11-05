@@ -54,6 +54,9 @@ class DirectFileSystem : FileSystem {
         if (!source.isFile) throw IOException("No se puede leer una carpeta como archivo")
         if (source.length() > MAX_EDITABLE_BYTES) throw IOException("Este archivo supera los 25 MB y aun no puede editarse.")
         val bytes = source.readBytes()
+        if (explicitCharset == null && CharsetDetector.isBinary(bytes)) {
+            throw IOException("El archivo parece ser binario y no puede editarse como texto.")
+        }
         CharsetDetector.decode(bytes, explicitCharset)
     }
 

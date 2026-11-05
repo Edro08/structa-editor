@@ -24,6 +24,29 @@ object CharsetDetector {
     private val UTF16_BE_BOM = byteArrayOf(0xFE.toByte(), 0xFF.toByte())
 
     /**
+     * Checks if the byte buffer appears to be binary rather than editable text.
+     * Inspects up to the first 8 KB. If UTF-16 BOM is present, it is considered text.
+     * Otherwise, encountering NUL bytes (0x00) or an excessive proportion of control characters indicates binary.
+     */
+    fun isBinary(bytes: ByteArray): Boolean {
+        if (bytes.isEmpty()) return false
+        if (hasBom(bytes, UTF16_LE_BOM) || hasBom(bytes, UTF16_BE_BOM)) return false
+
+        val checkLength = minOf(bytes.size, 8192)
+        var controlCount = 0
+        for (i in 0 until checkLength) {
+            val b = bytes[i].toInt() and 0xFF
+            if (b == 0x00) {
+                return true
+            }
+            if (b < 0x09 || b == 0x0B || b == 0x0C || (b in 0x0E..0x1F) || b == 0x7F) {
+                controlCount++
+            }
+        }
+        return (controlCount.toDouble() / checkLength) > 0.20
+    }
+
+    /**
      * Detects the character encoding of a raw byte buffer.
      */
     fun detect(bytes: ByteArray): DocumentCharset {
