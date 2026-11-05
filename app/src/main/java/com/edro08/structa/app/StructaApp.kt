@@ -3,6 +3,8 @@ package com.edro08.structa.app
 
 
 import android.content.Intent
+import androidx.core.content.FileProvider
+import java.io.File
 
 import android.net.Uri
 
@@ -430,6 +432,36 @@ fun StructaApp(openIntent: Intent? = null, onOpenIntentHandled: (Intent) -> Unit
                              onSaveAs = { destinationId -> editor.saveAs(destinationId) },
                              onRestoreDraft = editor::restoreDraft,
                              onDiscardDraft = editor::discardRecoveredDraft,
+                             onShare = {
+                                 val currentDoc = editorState.entry
+                                 if (currentDoc != null) {
+                                     val shareIntent = Intent(Intent.ACTION_SEND).apply {
+                                         type = when {
+                                             currentDoc.name.endsWith(".json", true) -> "application/json"
+                                             currentDoc.name.endsWith(".xml", true) -> "application/xml"
+                                             currentDoc.name.endsWith(".yaml", true) || currentDoc.name.endsWith(".yml", true) -> "application/x-yaml"
+                                             currentDoc.name.endsWith(".md", true) -> "text/markdown"
+                                             else -> "text/plain"
+                                         }
+                                         putExtra(Intent.EXTRA_SUBJECT, currentDoc.name)
+                                         val file = File(currentDoc.id.value)
+                                         if (file.exists() && file.isFile) {
+                                             val uri = try {
+                                                 FileProvider.getUriForFile(activity, "${activity.packageName}.fileprovider", file)
+                                             } catch (_: Exception) { null }
+                                             if (uri != null) {
+                                                 putExtra(Intent.EXTRA_STREAM, uri)
+                                                 addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                                             }
+                                         }
+                                         val textContent = editorState.inputSession?.engine?.document?.buffer?.let { buf ->
+                                             buf.getText(0, buf.length).toString()
+                                         }.orEmpty()
+                                         putExtra(Intent.EXTRA_TEXT, textContent)
+                                     }
+                                     activity.startActivity(Intent.createChooser(shareIntent, "Compartir ${currentDoc.name}"))
+                                 }
+                             },
                              onShowMessage = editor::showMessage)
 
                          Screen.SETTINGS -> SettingsScreen(settingsState, onBack = { screen = Screen.HOME },

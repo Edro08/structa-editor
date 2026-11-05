@@ -126,6 +126,21 @@ Las fases **1–16** representan el desarrollo del motor base, arquitectura, erg
 - **Tokens Semánticos Theme-Aware (`Theme.kt` & `Color.kt`)**:
   - `StructaCustomColors` ampliado con propiedades dedicadas para bloques de código, tablas, enlaces, código inline y encabezados, asegurando que el Modo Oscuro Pure OLED permanezca 100% inalterado y el Modo Claro ofrezca experiencia técnica premium.
 
+### Fase 21 — Hardening de Seguridad, Integridad de Datos y Acción Compartir
+- **Detección y Blindaje contra Archivos Binarios (`CharsetDetector.kt` & `DirectFileSystem.kt`)**:
+  - Inspección de cabecera (primeros 8 KB) para detectar bytes nulos `0x00` y proporciones anómalas de caracteres de control (> 20%).
+  - Rechazo automático de apertura de archivos binarios (`.png`, `.so`, `.zip`, `.pdf`, `.db`) con mensaje claro de protección, evitando el colapso de memoria y corrupción de datos al guardar.
+- **Protección de Privacidad en Backups (`backup_rules.xml` & `data_extraction_rules.xml`)**:
+  - Exclusión explícita del directorio privado de borradores (`domain="file" path="drafts"`), evitando que credenciales, tokens o notas confidenciales no guardadas se filtren en backups de Google en la nube.
+- **Defensa en Profundidad de Red (`AndroidManifest.xml`)**:
+  - Bloqueo explícito de tráfico no cifrado mediante `android:usesCleartextTraffic="false"`.
+- **Blindaje del Filesystem contra Symlink Escape & Path Traversal (`DirectFileSystem.kt`)**:
+  - Validación de frontera de directorio canónico (`target.parentFile?.canonicalPath == folder.canonicalPath`) en creación y renombrado.
+  - Sanitización estricta de nombres prohibiendo secuencias `..` y caracteres de control invisibles (`< ' '`).
+- **Acción «Compartir archivo» con FileProvider Seguro (`EditorScreen.kt` & `StructaApp.kt`)**:
+  - Opción «Compartir…» en el menú desplegable `Archivo` que lanza un selector nativo de Android (`Intent.ACTION_SEND`).
+  - `FileProvider` oficial configurado con permisos temporales de lectura para adjuntar el archivo físico o enviar su contenido de texto.
+
 ---
 
 ---
@@ -148,6 +163,7 @@ Las fases **1–16** representan el desarrollo del motor base, arquitectura, erg
 | Persistencia y Borradores (Fase 18) | 221 | 54 |
 | Ergonomía y Barra Secundaria (Fase 19) | 221 | 54 |
 | Rediseño Tema Claro WCAG AAA (Fase 20) | 221 | 54 |
+| Hardening y Compartir Archivo (Fase 21) | 225 | 54 |
 
 Comandos de verificación en Windows PowerShell:
 ```powershell

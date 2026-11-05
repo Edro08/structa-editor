@@ -42,6 +42,7 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.material.icons.filled.Tune
+import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.MoreHoriz
 import androidx.compose.material.icons.filled.AutoFixHigh
@@ -154,6 +155,7 @@ fun EditorScreen(state: EditorUiState, onBack: () -> Unit, onExplore: () -> Unit
     onToggleEditable: () -> Unit = {},
     onRestoreDraft: () -> Unit = {},
     onDiscardDraft: () -> Unit = {},
+    onShare: () -> Unit = {},
     onShowMessage: (String) -> Unit = {}) {
     var showSearch by rememberSaveable { mutableStateOf(false) }
     var showReplace by rememberSaveable { mutableStateOf(false) }
@@ -339,6 +341,10 @@ fun EditorScreen(state: EditorUiState, onBack: () -> Unit, onExplore: () -> Unit
                                     enabled = state.tabs.any { it.dirty } && !state.loading && !state.saving &&
                                         state.pendingSave == null && state.pendingClose == null) {
                                     showFileMenu = false; onSaveAll()
+                                }
+                                EditorMenuOption(stringResource(R.string.editor_share), Icons.Filled.Share,
+                                    enabled = entry != null && !state.loading) {
+                                    showFileMenu = false; onShare()
                                 }
                                 HorizontalDivider()
                                 EditorMenuOption(stringResource(R.string.editor_close), Icons.Filled.Close,

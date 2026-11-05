@@ -54,6 +54,9 @@ class DirectFileSystem : FileSystem {
         if (!source.isFile) throw IOException("No se puede leer una carpeta como archivo")
         if (source.length() > MAX_EDITABLE_BYTES) throw IOException("Este archivo supera los 25 MB y aun no puede editarse.")
         val bytes = source.readBytes()
+        if (explicitCharset == null && CharsetDetector.isBinary(bytes)) {
+            throw IOException("El archivo parece ser binario y no puede editarse como texto.")
+        }
         CharsetDetector.decode(bytes, explicitCharset)
     }
 
@@ -72,7 +75,11 @@ class DirectFileSystem : FileSystem {
         validateName(name)
         val folder = file(parent)
         if (!folder.isDirectory) throw IOException("La carpeta no existe")
-        val target = file(DocumentId(File(folder, name).path))
+        val candidate = File(folder, name)
+        val target = file(DocumentId(candidate.path))
+        if (target.parentFile?.canonicalPath != folder.canonicalPath) {
+            throw IOException("El elemento debe crearse dentro de la carpeta contenedora")
+        }
         if (target.exists()) throw IOException("Ya existe un archivo con ese nombre")
         if (directory) {
             if (!target.mkdir()) throw IOException("No se pudo crear la carpeta")
@@ -84,7 +91,11 @@ class DirectFileSystem : FileSystem {
         validateName(name)
         val source = file(file)
         if (!source.exists()) throw IOException("El archivo ya no existe")
-        val target = file(DocumentId(File(source.parentFile, name).path))
+        val candidate = File(source.parentFile, name)
+        val target = file(DocumentId(candidate.path))
+        if (target.parentFile?.canonicalPath != source.parentFile?.canonicalPath) {
+            throw IOException("No se permite mover el archivo fuera de su directorio de origen")
+        }
         if (target != source && target.exists()) throw IOException("Ya existe un archivo con ese nombre")
         if (target != source && !source.renameTo(target)) throw IOException("No se pudo renombrar el archivo")
         entry(target)
@@ -96,8 +107,8 @@ class DirectFileSystem : FileSystem {
     }
 
     private fun validateName(name: String) {
-        require(name.isNotBlank() && name != "." && name != ".." && name.none {
-            it == '/' || it == '\\' || it == '\u0000'
+        require(name.isNotBlank() && name != "." && name != ".." && !name.contains("..") && name.none {
+            it == '/' || it == '\\' || it == '\u0000' || it < ' '
         }) { "Nombre de archivo no válido" }
     }
 }

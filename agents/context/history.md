@@ -1,5 +1,47 @@
 # Historial de Structa
 
+## 2026-11-04 — Fase 21 (Paso 4): Acción «Compartir archivo» con FileProvider Seguro
+
+- **Acción Compartir Integrada en el Editor (`EditorScreen.kt` & `StructaApp.kt`)**:
+  - Incorporada opción «Compartir…» (`Icons.Filled.Share`) dentro del menú desplegable `Archivo` en la barra de herramientas del editor.
+  - Generación de `Intent(Intent.ACTION_SEND)` con tipo MIME dinámico (Markdown, JSON, XML, YAML o texto plano) y título `EXTRA_SUBJECT`.
+- **Integración Segura de `FileProvider` (`file_paths.xml` & `AndroidManifest.xml`)**:
+  - Configurado `FileProvider` oficial de Android para compartir el archivo adjunto (`EXTRA_STREAM`) con permisos temporales de lectura seguros (`FLAG_GRANT_READ_URI_PERMISSION`).
+  - Fallback automático para compartir el contenido del buffer (`EXTRA_TEXT`) en aplicaciones receptoras de texto.
+- **Verificación**:
+  - Compilación completa de APK de depuración (`:app:assembleDebug`) y pruebas unitarias (`:app:testDebugUnitTest`) aprobadas.
+
+## 2026-11-04 — Fase 21 (Paso 3): Blindaje de Filesystem contra Symlink Escape & Path Traversal
+
+- **Verificación de Frontera Canónica en Creación y Renombrado (`DirectFileSystem.kt`)**:
+  - Implementada comprobación estricta de directorio padre canónico (`target.parentFile?.canonicalPath == folder.canonicalPath`) tanto en `create()` como en `rename()`.
+  - Impide que ataques de enlaces simbólicos o secuencias de escape puedan crear o mover archivos fuera de su carpeta contenedora legítima.
+- **Sanitización Reforzada de Nombres de Archivo (`validateName`)**:
+  - Prohibidos caracteres de control invisibles (`< ' '`), secuencias relativas compuestas (`..`) y delimitadores del sistema, garantizando integridad en el sistema de archivos POSIX.
+- **Verificación**:
+  - Pruebas unitarias ampliadas en `DirectFileSystemTest` (225 tests aprobados).
+
+## 2026-11-04 — Fase 21 (Paso 2): Hardening de Backup y Reglas de Extracción de Datos
+
+- **Protección de Datos Privados y Borradores (`backup_rules.xml` & `data_extraction_rules.xml`)**:
+  - Configurada exclusión explícita del directorio privado de borradores (`domain="file" path="drafts"`), previniendo que notas temporales, credenciales, tokens o código confidencial no guardado se envíen a la nube de Google Backup.
+  - Habilitada inclusión explícita únicamente de preferencias (`sharedpref`) para conservar ajustes de tema y tipografía entre dispositivos de forma segura.
+- **Defensa en Profundidad en el Manifiesto (`AndroidManifest.xml`)**:
+  - Declarado `android:usesCleartextTraffic="false"` a nivel de aplicación para garantizar que ningún componente o librería de terceros pueda ejecutar tráfico HTTP sin cifrar.
+- **Verificación**:
+  - Validación del manifiesto y reglas XML superada (`:app:testDebugUnitTest`).
+
+## 2026-11-04 — Fase 21 (Paso 1): Detección y Blindaje contra Archivos Binarios
+
+- **Detección Automática de Carga Binaria (`CharsetDetector.kt`)**:
+  - Incorporada función de inspección profunda `CharsetDetector.isBinary(bytes: ByteArray)` sobre una ventana de muestreo de hasta 8 KB.
+  - Discrimina inteligentemente documentos UTF-16 legítimos (que poseen alternancia de bytes 0x00 con BOM) frente a ejecutables, imágenes, bases de datos o archivos comprimidos.
+  - Detecta bytes nulos `0x00` aislados y proporciones anómalas de caracteres de control (> 20%).
+- **Protección en Filesystem (`DirectFileSystem.kt`)**:
+  - `readWithCharset` rechaza la apertura de archivos binarios no solicitados explícitamente lanzando `IOException("El archivo parece ser binario y no puede editarse como texto.")`, protegiendo la memoria del editor y evitando la corrupción accidental de datos binarios al guardar.
+- **Verificación**:
+  - Pruebas unitarias dedicadas en `CharsetDetectorTest` y `DirectFileSystemTest` (225 tests aprobados).
+
 ## 2026-11-04 — Depuración de Vestigios SAF y Migración a 100% Kotlin
 
 - **Eliminación Definitiva de Residuos SAF (`app/src/androidTest/`)**:

@@ -8,6 +8,7 @@
     <string name="editor_save">Guardar</string>
     <string name="editor_save_as">Guardar Como...</string>
     <string name="editor_save_all">Guardar todo</string>
+    <string name="editor_share">Compartir…</string>
     <string name="editor_close">Cerrar</string>
     <string name="editor_close_all">Cerrar todos</string>
     <string name="editor_close_others">Cerrar los demás</string>
