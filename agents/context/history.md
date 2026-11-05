@@ -1,5 +1,15 @@
 # Historial de Structa
 
+## 2026-11-04 — Fase 21 (Paso 3): Blindaje de Filesystem contra Symlink Escape & Path Traversal
+
+- **Verificación de Frontera Canónica en Creación y Renombrado (`DirectFileSystem.kt`)**:
+  - Implementada comprobación estricta de directorio padre canónico (`target.parentFile?.canonicalPath == folder.canonicalPath`) tanto en `create()` como en `rename()`.
+  - Impide que ataques de enlaces simbólicos o secuencias de escape puedan crear o mover archivos fuera de su carpeta contenedora legítima.
+- **Sanitización Reforzada de Nombres de Archivo (`validateName`)**:
+  - Prohibidos caracteres de control invisibles (`< ' '`), secuencias relativas compuestas (`..`) y delimitadores del sistema, garantizando integridad en el sistema de archivos POSIX.
+- **Verificación**:
+  - Pruebas unitarias ampliadas en `DirectFileSystemTest` (225 tests aprobados).
+
 ## 2026-11-04 — Fase 21 (Paso 2): Hardening de Backup y Reglas de Extracción de Datos
 
 - **Protección de Datos Privados y Borradores (`backup_rules.xml` & `data_extraction_rules.xml`)**:

@@ -49,6 +49,12 @@ class DirectFileSystemTest {
             }
             assertFalse(java.io.File(temporary.root, "Android/data").exists())
             assertThrows(IllegalArgumentException::class.java) { DirectFileRef("relative") }
+            assertThrows(IllegalArgumentException::class.java) {
+                runBlocking { fs.create(root, "name\nwith\nnewline", false) }
+            }
+            assertThrows(IllegalArgumentException::class.java) {
+                runBlocking { fs.create(root, "name..withdots", false) }
+            }
         }
     }
 
