@@ -83,16 +83,50 @@ Las fases **1–16** representan el desarrollo del motor base, arquitectura, erg
 - Abstracción de lectura/escritura (`readWithCharset`, `writeWithCharset`) en filesystem y casos de uso preservando el charset activo de cada documento.
 - Indicador visual dinámico de codificación en el encabezado de información del documento.
 
----
-
-## 🟡 Hoja de ruta técnica
-
-### Fase 18 — Robustez móvil y persistencia (Draft Crash Recovery)
+### Fase 18 — Robustez móvil y persistencia (Draft Crash Recovery) & Estandarización Visual
 - Dominio puro `domain.editor.draft`: `DocumentDraft` (documentId, content, timestamp, cursorAnchor, cursorActive, scrollX, scrollY, charset) y contrato `DraftRepository` con cero dependencias de Android.
 - Implementación atómica `FileDraftRepository` en directorio privado (`files/drafts`): claves SHA-256, delimitador seguro y escritura temporal atómica para inmunidad contra cierres abruptos o falta de batería.
 - Auto-guardado debounced (600ms) ante cambios en el buffer sucio y flush inmediato en ciclo de vida Android (`ON_STOP`, `onDispose` y `onCleared`).
 - Detección automática y banner no intrusivo Pure OLED (`DraftRecoveryBanner`) con acciones de 1 toque: «Restaurar» (aplica contenido, marca dirty y restaura cursor/scroll) y «Descartar» (limpia borrador en disco).
+- Notificación flotante inferior estilo Vaultk (`MessageOverlay`) con tarjeta en píldora (`20.dp`), acento verde esmeralda `#44DB98` para guardado y botón circular `X`.
+- Estandarización de diálogos y modales: eliminación de colores arcoíris en badges, eliminación del notch en inputs, botones primarios violetas con disabled translúcido, botones secundarios `TextButton` planos y alturas con scroll fluido garantizado.
 - Limpieza automática de borradores al guardar exitosamente el archivo o descartar cambios.
+
+---
+
+### Fase 19 — Ergonomía de Barra de Herramientas y Reorganización de Acciones (Secondary Action Bar / Toolbar)
+- **Top Bar Principal Limpia y Despejada**:
+  - Liberación del ancho total de la barra para el título del documento y línea de metadatos (`lenguaje · tamaño · charset · modo`), eliminando truncamientos abruptos (`BRUTE_FORCE_...`).
+  - Eliminación de la acumulación de 4 botones apretados en la cabecera, reemplazados por un único botón toggle minimalista de solo icono (`Icons.Filled.Tune`).
+- **Barra Secundaria Desplegable (`AnimatedVisibility`)**:
+  - Despliegue fluido vertical con desvanecimiento (`expandVertically + fadeIn / shrinkVertically + fadeOut`) sobre contenedor Pure OLED oscuro (`surfaceContainer`) con borde sutil.
+  - Scroll horizontal fluido para garantizar perfecta visualización en cualquier ancho de pantalla móvil.
+  - Acciones directas de solo icono (1 toque):
+    - **Modo**: Alternador rápido entre Lectura (lápiz) y Edición con iluminación violeta (`StructaPurple` + checkmark).
+    - **Vista Previa**: Alternador contextual para Markdown/HTML entre vista formateada y código fuente crudo.
+    - Notificaciones contextuales flotantes estilo Vaultk al accionar cada herramienta.
+  - Menús contextuales temáticos y ordenados (4 a 6 opciones por menú, eliminando el menú vertical monolítico de 15 opciones):
+    - **Archivo**: Abrir (`Ctrl+O`), Guardar (`Ctrl+S`), Guardar como..., Guardar todo, Cerrar y Cerrar otros/todos.
+    - **Editar**: Deshacer (`Ctrl+Z`), Rehacer (`Ctrl+Y`), Buscar en archivo (`Ctrl+F`), Reemplazar (`Ctrl+H`) y Buscar en Workspace (`Ctrl+Shift+F`).
+    - **Navegación**: Ir a línea (`Ctrl+G`), Esquema del documento / Outline (`Ctrl+Shift+O`), Ir al inicio e Ir al final.
+    - **Más Opciones**: Formatear documento, Selector de lenguaje, Selector de codificación y Ajuste de línea (Word wrap toggle).
+
+---
+
+### Fase 20 — Rediseño de Colores para el Tema Claro (Snow & Slate) y Accesibilidad WCAG AAA
+- **Erradicación de Cajas Negras en Markdown (`MarkdownViewer.kt`)**:
+  - Reemplazo de bloques de código en negro azabache (`#18191E`) por contenedores Slate 100 (`#F1F5F9`) con borde Slate 200 (`#E2E8F0`), barra de herramientas en Slate 200 con etiqueta de lenguaje en Índigo 700 (`#4338CA`), texto en carbón nítido (`#0F172A`) y botón de copiado con contraste optimizado.
+  - Corrección de tablas Markdown eliminando el fondo `#0E0F12` que causaba texto negro sobre fondo negro (contraste 1.1:1). Ahora renderiza tarjeta blanca pura con cabecera Slate 50, texto Slate 800 y celdas con tipografía accesible (WCAG AAA > 11:1).
+  - Píldoras de código inline actualizadas de negro/cyan a contenedor Slate 200 con texto Índigo 700 semi-bold.
+  - Enlaces Markdown convertidos a Azul técnico (`#2563EB`, ratio 6.5:1) y encabezados H3 a Índigo 700 (`#4338CA`).
+- **Ajustes y Navegación (`SettingsScreen.kt`, `AppNavigation.kt`)**:
+  - Encabezados de categoría (`APARIENCIA`, `EDITOR DE TEXTO`, `ALMACENAMIENTO`) en Índigo 700 (`#4338CA`) con tracking.
+  - Iconos de preferencias con contenedor suave (`#EEF2FF`) y tinte Índigo (`#4F46E5`).
+  - Enlace «Administrar permiso» e indicador de fuente con colores accesibles.
+- **Tokens Semánticos Theme-Aware (`Theme.kt` & `Color.kt`)**:
+  - `StructaCustomColors` ampliado con propiedades dedicadas para bloques de código, tablas, enlaces, código inline y encabezados, asegurando que el Modo Oscuro Pure OLED permanezca 100% inalterado y el Modo Claro ofrezca experiencia técnica premium.
+
+---
 
 ---
 
@@ -112,6 +146,8 @@ Las fases **1–16** representan el desarrollo del motor base, arquitectura, erg
 | Vista limpia Markdown (Fase 16) | 193 | 54 |
 | Codificaciones y Tablas (Fase 17) | 207 | 54 |
 | Persistencia y Borradores (Fase 18) | 221 | 54 |
+| Ergonomía y Barra Secundaria (Fase 19) | 221 | 54 |
+| Rediseño Tema Claro WCAG AAA (Fase 20) | 221 | 54 |
 
 Comandos de verificación en Windows PowerShell:
 ```powershell

@@ -17,23 +17,22 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.edro08.structa.R
-import com.edro08.structa.ui.theme.DarkTextMuted
 import com.edro08.structa.ui.theme.ScreenStyle
-import com.edro08.structa.ui.theme.StructaLavender
-import com.edro08.structa.ui.theme.StructaPurple
 
 enum class Screen { HOME, BROWSER, EDITOR, SETTINGS, SELECT_DIRECTORY }
 
 @Composable
 fun AppNavigation(currentScreen: Screen, onScreenSelected: (Screen) -> Unit) {
+    val colors = MaterialTheme.colorScheme
+
     Column(
         Modifier
             .fillMaxWidth()
-            .background(MaterialTheme.colorScheme.surface)
+            .background(colors.surface)
     ) {
         HorizontalDivider(
             thickness = 0.5.dp,
-            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+            color = colors.outlineVariant.copy(alpha = 0.5f)
         )
         Row(
             Modifier
@@ -56,7 +55,7 @@ fun AppNavigation(currentScreen: Screen, onScreenSelected: (Screen) -> Unit) {
                     modifier = Modifier.weight(1f),
                     contentPadding = PaddingValues(0.dp),
                     colors = ButtonDefaults.textButtonColors(
-                        contentColor = if (selected) StructaLavender else DarkTextMuted
+                        contentColor = if (selected) colors.primary else colors.onSurfaceVariant.copy(alpha = 0.7f)
                     )
                 ) {
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
@@ -65,7 +64,7 @@ fun AppNavigation(currentScreen: Screen, onScreenSelected: (Screen) -> Unit) {
                                 .width(60.dp)
                                 .height(32.dp)
                                 .background(
-                                    if (selected) StructaPurple.copy(alpha = 0.20f) else Color.Transparent,
+                                    if (selected) colors.primary.copy(alpha = 0.16f) else Color.Transparent,
                                     RoundedCornerShape(16.dp)
                                 ),
                             contentAlignment = Alignment.Center
@@ -76,8 +75,7 @@ fun AppNavigation(currentScreen: Screen, onScreenSelected: (Screen) -> Unit) {
                         Text(
                             stringResource(label),
                             style = MaterialTheme.typography.labelSmall,
-                            fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal,
-                            maxLines = 1
+                            fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal
                         )
                     }
                 }

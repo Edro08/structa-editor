@@ -429,7 +429,8 @@ fun StructaApp(openIntent: Intent? = null, onOpenIntentHandled: (Intent) -> Unit
                              onGoToStart = editor::goToStart, onGoToEnd = editor::goToEnd,
                              onSaveAs = { destinationId -> editor.saveAs(destinationId) },
                              onRestoreDraft = editor::restoreDraft,
-                             onDiscardDraft = editor::discardRecoveredDraft)
+                             onDiscardDraft = editor::discardRecoveredDraft,
+                             onShowMessage = editor::showMessage)
 
                          Screen.SETTINGS -> SettingsScreen(settingsState, onBack = { screen = Screen.HOME },
 

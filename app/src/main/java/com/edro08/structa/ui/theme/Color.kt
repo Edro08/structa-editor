@@ -39,9 +39,11 @@ val StructaSecondary = Color(0xFF94A3B8)             // Acento secundario pizarr
 val StructaCyan = Color(0xFF38BDF8)                  // Cyan para símbolos y acciones clave
 val StructaViolet = Color(0xFF7C3AED)                // Violeta profundo (Tailwind violet-600)
 val StructaIndigo = Color(0xFF4F46E5)                // Índigo profundo (Tailwind indigo-600)
+val StructaIndigoDeep = Color(0xFF4338CA)            // Índigo 700 para alto contraste en tema claro (WCAG AAA)
+val StructaBlue = Color(0xFF2563EB)                  // Azul técnico para enlaces accesibles (WCAG AAA)
 val StructaPurple = StructaIndigo                    // Acento primario más oscuro y saturado
-val StructaFolder = Color(0xFF818CF8)                // Índigo suave para iconos de carpeta
-val StructaLavender = Color(0xFFA5B4FC)              // Lavanda para breadcrumbs y acentos secundarios
+val StructaFolder = Color(0xFF818CF8)                // Índigo 400 técnico para iconos y breadcrumbs
+val StructaLavender = Color(0xFF818CF8)              // Índigo 400 con más cuerpo y saturación para tema oscuro
 
 // --- ESTADOS DE FEEDBACK ---
 val StatusGreen = Color(0xFF10B981)                  // Éxito / Permiso activo

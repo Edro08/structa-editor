@@ -37,12 +37,13 @@ fun WorkspacePanel(modifier: Modifier = Modifier, compact: Boolean = false,
 @Composable
 fun WorkspaceBadge(modifier: Modifier = Modifier, label: String? = null) {
     val shape = RoundedCornerShape(10.dp)
+    val colors = MaterialTheme.colorScheme
     Box(
         modifier = modifier
             .size(40.dp)
             .clip(shape)
-            .background(StructaPurple.copy(alpha = 0.15f))
-            .border(1.dp, StructaPurple.copy(alpha = 0.30f), shape),
+            .background(colors.primary.copy(alpha = 0.15f))
+            .border(1.dp, colors.primary.copy(alpha = 0.30f), shape),
         contentAlignment = Alignment.Center
     ) {
         if (label == null) {
@@ -50,14 +51,14 @@ fun WorkspaceBadge(modifier: Modifier = Modifier, label: String? = null) {
                 imageVector = Icons.Filled.Folder,
                 contentDescription = null,
                 modifier = Modifier.size(22.dp),
-                tint = StructaLavender
+                tint = colors.primary
             )
         } else {
             Text(
                 text = label,
                 style = MaterialTheme.typography.labelMedium,
                 fontWeight = FontWeight.SemiBold,
-                color = StructaLavender
+                color = colors.primary
             )
         }
     }

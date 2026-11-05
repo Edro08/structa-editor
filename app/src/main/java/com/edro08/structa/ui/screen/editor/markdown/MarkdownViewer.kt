@@ -42,14 +42,8 @@ import androidx.compose.ui.unit.sp
 import com.edro08.structa.domain.editor.markdown.MarkdownNode
 import com.edro08.structa.domain.editor.markdown.MarkdownSpan
 import com.edro08.structa.domain.editor.markdown.TableAlignment
-import com.edro08.structa.ui.theme.DarkOutlineVariant
-import com.edro08.structa.ui.theme.DarkSurface
-import com.edro08.structa.ui.theme.DarkSurfaceRaised
-import com.edro08.structa.ui.theme.DarkTextPrimary
 import com.edro08.structa.ui.theme.ScreenStyle
-import com.edro08.structa.ui.theme.StructaCyan
-import com.edro08.structa.ui.theme.StructaLavender
-import com.edro08.structa.ui.theme.StructaPurple
+import com.edro08.structa.ui.theme.structaColors
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
@@ -113,7 +107,7 @@ private fun MarkdownHeadingItem(
     val (style, defaultColor, topPad, bottomPad) = when (heading.level) {
         1 -> Quad(MaterialTheme.typography.headlineSmall, colors.onSurface, 18.dp, 8.dp)
         2 -> Quad(MaterialTheme.typography.titleLarge, colors.onSurface, 16.dp, 6.dp)
-        3 -> Quad(MaterialTheme.typography.titleMedium, StructaLavender, 12.dp, 4.dp)
+        3 -> Quad(MaterialTheme.typography.titleMedium, MaterialTheme.structaColors.sectionHeader, 12.dp, 4.dp)
         else -> Quad(MaterialTheme.typography.titleSmall, colors.onSurface, 10.dp, 4.dp)
     }
 
@@ -155,7 +149,7 @@ private fun MarkdownBulletItem(
     ) {
         Text(
             text = "•",
-            color = StructaPurple,
+            color = MaterialTheme.colorScheme.primary,
             fontWeight = FontWeight.Bold,
             fontSize = 15.sp,
             modifier = Modifier.padding(end = 8.dp, top = 1.dp)
@@ -184,7 +178,7 @@ private fun MarkdownNumberedItem(
     ) {
         Text(
             text = "${item.number}.",
-            color = StructaLavender,
+            color = MaterialTheme.structaColors.sectionHeader,
             fontFamily = FontFamily.Monospace,
             fontSize = 13.sp,
             fontWeight = FontWeight.SemiBold,
@@ -215,7 +209,7 @@ private fun MarkdownBlockquoteItem(
             modifier = Modifier
                 .width(3.dp)
                 .height(IntrinsicSize.Min)
-                .background(StructaPurple, RoundedCornerShape(2.dp))
+                .background(MaterialTheme.colorScheme.primary, RoundedCornerShape(2.dp))
         )
         Spacer(Modifier.width(12.dp))
         Text(
@@ -250,17 +244,18 @@ private fun MarkdownTableItem(
     ) {
         val density = LocalDensity.current
         val viewportWidthPx = with(density) { maxWidth.roundToPx() }
+        val structa = MaterialTheme.structaColors
 
         Surface(
             modifier = Modifier
                 .fillMaxWidth()
                 .border(
                     1.dp,
-                    DarkOutlineVariant.copy(alpha = 0.6f),
+                    structa.tableBorder,
                     RoundedCornerShape(12.dp)
                 ),
             shape = RoundedCornerShape(12.dp),
-            color = DarkSurface
+            color = structa.tableBackground
         ) {
             Box(
                 modifier = Modifier
@@ -287,6 +282,7 @@ private fun MarkdownTableLayout(
     val numColumns = table.headers.cells.size
     val numRows = 1 + table.rows.size
     val coords = remember { TableCoordinates() }
+    val structa = MaterialTheme.structaColors
 
     Layout(
         content = {
@@ -304,14 +300,14 @@ private fun MarkdownTableLayout(
                     val headerSpans = buildMarkdownSpans(
                         cell.spans,
                         onLinkClick,
-                        defaultColor = StructaLavender,
+                        defaultColor = structa.tableHeaderText,
                         parentFontWeight = FontWeight.Bold
                     )
                     Text(
                         text = headerSpans,
                         style = MaterialTheme.typography.bodyMedium,
                         fontWeight = FontWeight.Bold,
-                        color = StructaLavender,
+                        color = structa.tableHeaderText,
                         textAlign = textAlign
                     )
                 }
@@ -355,7 +351,7 @@ private fun MarkdownTableLayout(
             // 1. Header background
             if (rh.isNotEmpty()) {
                 drawRect(
-                    color = DarkSurfaceRaised,
+                    color = structa.tableHeaderBackground,
                     topLeft = Offset(0f, 0f),
                     size = Size(size.width, rh[0].toFloat())
                 )
@@ -365,7 +361,7 @@ private fun MarkdownTableLayout(
             for (r in 1 until rs.size) {
                 if (r % 2 == 0) {
                     drawRect(
-                        color = DarkSurfaceRaised.copy(alpha = 0.35f),
+                        color = structa.tableZebra,
                         topLeft = Offset(0f, rs[r].toFloat()),
                         size = Size(size.width, rh[r].toFloat())
                     )
@@ -373,8 +369,8 @@ private fun MarkdownTableLayout(
             }
 
             // 3. Horizontal grid dividers
-            val dividerColor = DarkOutlineVariant.copy(alpha = 0.35f)
-            val headerDividerColor = DarkOutlineVariant.copy(alpha = 0.75f)
+            val dividerColor = structa.tableDivider
+            val headerDividerColor = structa.tableDivider
             for (r in 1 until rs.size) {
                 val y = rs[r].toFloat()
                 val isHeaderDivider = (r == 1)
@@ -495,6 +491,7 @@ private fun MarkdownCodeBlockItem(codeBlock: MarkdownNode.CodeBlock) {
     val clipboard = LocalClipboardManager.current
     var copied by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
+    val structa = MaterialTheme.structaColors
 
     Surface(
         modifier = Modifier
@@ -502,17 +499,17 @@ private fun MarkdownCodeBlockItem(codeBlock: MarkdownNode.CodeBlock) {
             .padding(vertical = 6.dp)
             .border(
                 1.dp,
-                MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f),
+                structa.codeBlockBorder,
                 RoundedCornerShape(12.dp)
             ),
         shape = RoundedCornerShape(12.dp),
-        color = DarkSurfaceRaised
+        color = structa.codeBlockBackground
     ) {
         Column {
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .background(MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.5f))
+                    .background(structa.codeBlockHeader)
                     .padding(horizontal = 12.dp, vertical = 6.dp),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
@@ -522,7 +519,7 @@ private fun MarkdownCodeBlockItem(codeBlock: MarkdownNode.CodeBlock) {
                     fontFamily = FontFamily.Monospace,
                     fontSize = 11.sp,
                     fontWeight = FontWeight.Bold,
-                    color = StructaLavender
+                    color = structa.codeBlockHeaderText
                 )
 
                 Row(
@@ -559,7 +556,7 @@ private fun MarkdownCodeBlockItem(codeBlock: MarkdownNode.CodeBlock) {
                 fontFamily = FontFamily.Monospace,
                 fontSize = 13.sp,
                 lineHeight = 19.sp,
-                color = DarkTextPrimary,
+                color = structa.codeBlockText,
                 modifier = Modifier
                     .fillMaxWidth()
                     .horizontalScroll(rememberScrollState())
@@ -579,9 +576,19 @@ private fun buildMarkdownSpans(
     parentColor: Color? = null
 ): AnnotatedString {
     val colors = MaterialTheme.colorScheme
+    val structa = MaterialTheme.structaColors
     val fallbackColor = parentColor ?: defaultColor ?: colors.onSurface
     return buildAnnotatedString {
-        appendSpans(spans, fallbackColor, parentFontWeight, parentFontStyle, onLinkClick)
+        appendSpans(
+            spans = spans,
+            fallbackColor = fallbackColor,
+            parentFontWeight = parentFontWeight,
+            parentFontStyle = parentFontStyle,
+            onLinkClick = onLinkClick,
+            inlineCodeBg = structa.inlineCodeBackground,
+            inlineCodeColor = structa.inlineCodeText,
+            linkColor = structa.link
+        )
     }
 }
 
@@ -590,7 +597,10 @@ private fun AnnotatedString.Builder.appendSpans(
     fallbackColor: Color,
     parentFontWeight: FontWeight?,
     parentFontStyle: FontStyle?,
-    onLinkClick: (String) -> Unit
+    onLinkClick: (String) -> Unit,
+    inlineCodeBg: Color,
+    inlineCodeColor: Color,
+    linkColor: Color
 ) {
     for (span in spans) {
         when (span) {
@@ -607,7 +617,7 @@ private fun AnnotatedString.Builder.appendSpans(
             is MarkdownSpan.Bold -> {
                 val weight = FontWeight.Bold
                 if (span.children.isNotEmpty()) {
-                    appendSpans(span.children, fallbackColor, weight, parentFontStyle, onLinkClick)
+                    appendSpans(span.children, fallbackColor, weight, parentFontStyle, onLinkClick, inlineCodeBg, inlineCodeColor, linkColor)
                 } else {
                     pushStyle(SpanStyle(fontWeight = weight, fontStyle = parentFontStyle, color = fallbackColor))
                     append(span.text)
@@ -617,7 +627,7 @@ private fun AnnotatedString.Builder.appendSpans(
             is MarkdownSpan.Italic -> {
                 val italic = FontStyle.Italic
                 if (span.children.isNotEmpty()) {
-                    appendSpans(span.children, fallbackColor, parentFontWeight, italic, onLinkClick)
+                    appendSpans(span.children, fallbackColor, parentFontWeight, italic, onLinkClick, inlineCodeBg, inlineCodeColor, linkColor)
                 } else {
                     pushStyle(SpanStyle(fontStyle = italic, fontWeight = parentFontWeight, color = fallbackColor))
                     append(span.text)
@@ -628,7 +638,7 @@ private fun AnnotatedString.Builder.appendSpans(
                 val weight = FontWeight.Bold
                 val italic = FontStyle.Italic
                 if (span.children.isNotEmpty()) {
-                    appendSpans(span.children, fallbackColor, weight, italic, onLinkClick)
+                    appendSpans(span.children, fallbackColor, weight, italic, onLinkClick, inlineCodeBg, inlineCodeColor, linkColor)
                 } else {
                     pushStyle(SpanStyle(fontWeight = weight, fontStyle = italic, color = fallbackColor))
                     append(span.text)
@@ -638,7 +648,7 @@ private fun AnnotatedString.Builder.appendSpans(
             is MarkdownSpan.Colored -> {
                 val resolvedColor = parseColorString(span.color) ?: fallbackColor
                 if (span.children.isNotEmpty()) {
-                    appendSpans(span.children, resolvedColor, parentFontWeight, parentFontStyle, onLinkClick)
+                    appendSpans(span.children, resolvedColor, parentFontWeight, parentFontStyle, onLinkClick, inlineCodeBg, inlineCodeColor, linkColor)
                 } else {
                     pushStyle(SpanStyle(color = resolvedColor, fontWeight = parentFontWeight, fontStyle = parentFontStyle))
                     append(span.text)
@@ -649,10 +659,10 @@ private fun AnnotatedString.Builder.appendSpans(
                 pushStyle(
                     SpanStyle(
                         fontFamily = FontFamily.Monospace,
-                        background = DarkSurfaceRaised,
-                        color = StructaCyan,
-                        fontSize = 13.sp,
-                        fontWeight = parentFontWeight ?: FontWeight.Normal
+                        background = inlineCodeBg,
+                        color = inlineCodeColor,
+                        fontSize = 12.5.sp,
+                        fontWeight = FontWeight.SemiBold
                     )
                 )
                 append(" ${span.text} ")
@@ -661,13 +671,13 @@ private fun AnnotatedString.Builder.appendSpans(
             is MarkdownSpan.Link -> {
                 pushStyle(
                     SpanStyle(
-                        color = StructaCyan,
+                        color = linkColor,
                         textDecoration = TextDecoration.Underline,
-                        fontWeight = FontWeight.Medium
+                        fontWeight = FontWeight.SemiBold
                     )
                 )
                 if (span.children.isNotEmpty()) {
-                    appendSpans(span.children, StructaCyan, FontWeight.Medium, parentFontStyle, onLinkClick)
+                    appendSpans(span.children, linkColor, FontWeight.SemiBold, parentFontStyle, onLinkClick, inlineCodeBg, inlineCodeColor, linkColor)
                 } else {
                     append(span.text)
                 }

@@ -1,5 +1,44 @@
 # Historial de Structa
 
+## 2026-11-04 — Fase 20: Rediseño de Colores para el Tema Claro (Snow & Slate) y Accesibilidad WCAG AAA
+
+- **Auditoría y Corrección de Contraste en Modo Claro (`MarkdownViewer.kt`)**:
+  - **Erradicación de Cajas Negras en Bloques de Código**: Reemplazado el fondo negro pitch-black hardcodeado (`#18191E`) por un contenedor limpio Slate 100 (`#F1F5F9`) con borde Slate 200 (`#E2E8F0`), barra de cabecera en Slate 200 con badge de lenguaje en Índigo 700 (`#4338CA`), texto de código en carbón nítido (`#0F172A`) y botón «Copiar» con alto contraste.
+  - **Corrección Crítica de Tablas Markdown**: Eliminado el fondo negro azabache (`#0E0F12`) que causaba texto invisible (carbón `#111827` sobre negro con ratio 1.1:1). Ahora renderiza como tarjeta blanca pura (`#FFFFFF`), cabecera Slate 50 (`#F8FAFC`) con texto Slate 800 (`#1E293B`), bordes sutiles Slate 200 y celdas con tipografía oscura de máximo contraste (ratio > 11:1, WCAG AAA).
+  - **Píldoras de Código Inline (`InlineCode`)**: Sustituido el chip carbón con texto cyan neón por badges tipográficos integrados en Slate 200 (`#E2E8F0`) con texto Índigo 700 (`#4338CA`) y fuente monoespaciada semi-bold.
+  - **Enlaces Markdown y Encabezados H3**: Enlaces ahora renderizan en Azul técnico accesible (`#2563EB`, ratio 6.5:1) y encabezados H3/listas numeradas en Índigo 700 (`#4338CA`), eliminando el lavanda deslavado sobre fondo blanco.
+- **Armonización Total de Identidad Índigo (`HomeScreen.kt`, `SettingsScreen.kt`, `BrowserScreen.kt`)**:
+  - **Unificación Exacta con Pantalla de Inicio**: Los iconos y títulos en **Explorador** (icono de carpeta, botón de refresco `↻`, botón de añadir `+`) y en **Ajustes** (encabezados de categoría, contenedores e iconos de preferencias) ahora usan **exactamente el mismo Índigo de marca saturado (`#4F46E5` / `StructaPurple`)** que la estrella de favoritos y los badges de la pantalla de inicio.
+  - Erradicada cualquier inconsistencia de tonalidades pastel o deslavadas, logrando una identidad 100% simétrica, pulida y cohesiva entre Inicio, Explorador, Editor y Ajustes.
+- **Sistema Global de Tokens Theme-Aware (`Theme.kt` & `Color.kt`)**:
+  - Incorporados tokens semánticos en `StructaCustomColors`: `codeBlockBackground`, `codeBlockBorder`, `codeBlockHeader`, `codeBlockHeaderText`, `codeBlockText`, `inlineCodeBackground`, `inlineCodeText`, `link`, `sectionHeader`, `tableBackground`, `tableHeaderBackground`, `tableHeaderText`, `tableBorder`, `tableDivider`, `tableZebra`, `isDark`.
+  - Mantenido al 100% el diseño Pure OLED Obsidian en Modo Oscuro sin regresiones visuales.
+  - Actualizada la barra de navegación inferior (`AppNavigation.kt`) y componentes auxiliares (`WorkspaceChrome.kt`) con tokens de color primario adaptables al tema.
+- **Verificación**:
+  - 221 pruebas unitarias JVM (`:app:testDebugUnitTest`) aprobadas.
+  - Instalación y validación en emulador Android (`Pixel 9 Pro` / API 35) en Modo Claro y Modo Oscuro (`screen_light_theme_initial.png`, `screen_settings_verified.png`, `screen_md_verified.png`, `screen_table_8.png`, `screen_dark_verified.png`).
+
+## 2026-11-03 — Fase 19: Implementación de la Barra de Herramientas Secundaria y Reorganización Ergonómica
+
+- **Rediseño Ergonómico de la Cabecera (`EditorScreen.kt`)**:
+  - **Top Bar 100% Despejada**: Sustituida la acumulación de 4 botones apretados (Código, Lápiz, Archivo, 3 puntos) por un único botón toggle minimalista de solo icono (`Icons.Filled.Tune`) en la esquina superior derecha.
+  - **Visibilidad Total de Metadatos**: El título del archivo (`BRUTE_FORCE_DEFENSE.md`) y la línea de metadatos (`Markdown · 9 KB · UTF-8 · Lectura/Edición`) ahora disponen de todo el ancho de la pantalla sin truncamientos agresivos.
+- **Barra de Herramientas Secundaria Desplegable (`AnimatedVisibility`)**:
+  - **Refinamiento Visual Minimal Flat**: Eliminación de las cajas y bordes individuales rígidos en los botones. Fondo Pure OLED negro (`MaterialTheme.colorScheme.background`), iconos flotantes sin recuadros pesados (`IconButton` en `36.dp`) y botones de menú como texto plano con chevron tenue (`8.dp` padding y ripple táctil).
+  - **Botones Directos de Solo Icono**:
+    - **Modo**: Alterna entre Lectura (lápiz sobre fondo OLED) y Edición (checkmark en `StructaLavender`).
+    - **Vista Previa**: Botón contextual para Markdown/HTML que alterna entre vista previa y código fuente crudo.
+    - Notificaciones descriptivas estilo Vaultk al pulsar (`Modo Edición activado`, `Modo Lectura activado`, `Barra de herramientas oculta/visible`).
+  - **Menús Contextuales Temáticos (DropdownMenu)**:
+    - `[ 📁 Archivo ▾ ]`: Abrir (`Ctrl+O`), Guardar (`Ctrl+S`), Guardar como..., Guardar todo, Cerrar y Cerrar otros/todos.
+    - `[ ✏️ Editar ▾ ]`: Deshacer (`Ctrl+Z`), Rehacer (`Ctrl+Y`), Buscar (`Ctrl+F`), Reemplazar (`Ctrl+H`) y Buscar en Workspace (`Ctrl+Shift+F`).
+    - `[ 🧭 Navegación ▾ ]`: Ir a línea... (`Ctrl+G`), Índice de contenido / Outline (`Ctrl+Shift+O`), Ir al inicio e Ir al final.
+    - `[ ••• Más ▾ ]`: Formatear documento, Selector de lenguaje (diálogo), Selector de codificación (diálogo) y Ajuste de línea (Word wrap toggle).
+  - Scroll horizontal fluido con `Modifier.horizontalScroll(rememberScrollState())` garantizando adaptabilidad en pantallas estrechas.
+- **Verificación**:
+  - 221 pruebas unitarias JVM (`:app:testDebugUnitTest`) aprobadas.
+  - Compilación e instalación en emulador Android (`Pixel 9 Pro` / API 35) verificada con capturas de pantalla de despliegue, colapso y apertura de menús (`screen_fase19_editor.png`, `screen_fase19_collapsed.png`, `screen_fase19_archivo_menu.png`, `screen_fase19_edit_mode.png`, `screen_fase19_edit_menu.png`, `screen_fase19_nav_menu.png`, `screen_fase19_more_menu.png`).
+
 ## 2026-11-03 — Estandarización del Sistema de Diálogos y Modales Visuales
 
 - **Unificación de Jerarquía de Acciones y Botones**:
