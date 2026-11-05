@@ -421,7 +421,7 @@ fun BrowserScreen(
 
                                     modifier = Modifier.size(22.dp),
 
-                                    tint = StructaLavender
+                                    tint = colors.primary
 
                                 )
 
@@ -505,7 +505,7 @@ fun BrowserScreen(
 
                                     modifier = Modifier.size(24.dp),
 
-                                    tint = StructaLavender
+                                    tint = colors.primary
 
                                 )
 
@@ -537,7 +537,7 @@ fun BrowserScreen(
 
                                             modifier = Modifier.size(26.dp),
 
-                                            tint = StructaLavender
+                                            tint = colors.primary
 
                                         )
 
@@ -941,7 +941,7 @@ private fun BrowserEmptyWorkspaceView(onChooseFolder: () -> Unit) {
 
                     contentDescription = null,
 
-                    tint = StructaLavender,
+                    tint = colors.primary,
 
                     modifier = Modifier.size(38.dp)
 

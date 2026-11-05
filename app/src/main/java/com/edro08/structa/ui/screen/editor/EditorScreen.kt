@@ -36,6 +36,14 @@ import androidx.compose.material.icons.filled.Save
 import androidx.compose.material.icons.filled.SaveAs
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Translate
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
+import androidx.compose.material.icons.filled.Tune
+import androidx.compose.material.icons.filled.ArrowDropDown
+import androidx.compose.material.icons.filled.MoreHoriz
 import androidx.compose.material.icons.filled.AutoFixHigh
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.*
@@ -144,11 +152,15 @@ fun EditorScreen(state: EditorUiState, onBack: () -> Unit, onExplore: () -> Unit
     onGlobalSearch: () -> Unit = {},
     onToggleEditable: () -> Unit = {},
     onRestoreDraft: () -> Unit = {},
-    onDiscardDraft: () -> Unit = {}) {
+    onDiscardDraft: () -> Unit = {},
+    onShowMessage: (String) -> Unit = {}) {
     var showSearch by rememberSaveable { mutableStateOf(false) }
     var showReplace by rememberSaveable { mutableStateOf(false) }
     var showFileMenu by remember { mutableStateOf(false) }
     var showEditMenu by remember { mutableStateOf(false) }
+    var showNavMenu by remember { mutableStateOf(false) }
+    var showMoreMenu by remember { mutableStateOf(false) }
+    var showToolbar by rememberSaveable { mutableStateOf(true) }
     var showFormatMenu by remember { mutableStateOf(false) }
     var showEncodingMenu by remember { mutableStateOf(false) }
     var showGoToLine by rememberSaveable { mutableStateOf(false) }
@@ -211,6 +223,7 @@ fun EditorScreen(state: EditorUiState, onBack: () -> Unit, onExplore: () -> Unit
     Scaffold(modifier = Modifier.onPreviewKeyEvent { event ->
         applicationActionFor(event.nativeKeyEvent)?.let { dispatch(it); true } ?: false
     }, topBar = {
+        Column(modifier = Modifier.fillMaxWidth().background(MaterialTheme.colorScheme.background)) {
         StructaTopBar(title = {
             Column {
                  val title = entry?.name ?: stringResource(R.string.editor_title)
@@ -228,133 +241,293 @@ fun EditorScreen(state: EditorUiState, onBack: () -> Unit, onExplore: () -> Unit
         }, onBack = onBack,
             actions = {
                 if (entry != null) {
-                    if (isMarkdown && !state.isEditable) {
-                        IconButton(
-                            onClick = { renderMarkdown = !renderMarkdown }
-                        ) {
-                            Icon(
-                                imageVector = if (renderMarkdown) Icons.Filled.Code else Icons.Filled.Description,
-                                contentDescription = if (renderMarkdown) stringResource(R.string.editor_action_view_raw) else stringResource(R.string.editor_action_view_rendered),
-                                tint = if (renderMarkdown) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
-                    }
-                    IconButton(
-                        onClick = {
-                            if (state.isEditable) keyboardController?.hide()
-                            state.inputSession?.finishComposingText()
-                            onToggleEditable()
-                        }
-                    ) {
+                    IconButton(onClick = {
+                        showToolbar = !showToolbar
+                        onShowMessage(if (showToolbar) "Barra de herramientas visible" else "Barra de herramientas oculta")
+                    }) {
                         Icon(
-                            imageVector = if (state.isEditable) Icons.Filled.Check else Icons.Filled.Edit,
-                            contentDescription = if (state.isEditable) stringResource(R.string.editor_action_view) else stringResource(R.string.editor_action_edit),
-                            tint = if (state.isEditable) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+                            imageVector = Icons.Filled.Tune,
+                            contentDescription = "Herramientas",
+                            tint = if (showToolbar) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
                 }
-                Box {
-                    IconButton(onClick = { showEditMenu = false; showFileMenu = true }) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.InsertDriveFile,
-                            contentDescription = stringResource(R.string.editor_file_menu),
-                            tint = if (showFileMenu) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+            })
+            AnimatedVisibility(
+                visible = showToolbar && entry != null,
+                enter = expandVertically() + fadeIn(),
+                exit = shrinkVertically() + fadeOut()
+            ) {
+                Column(modifier = Modifier.fillMaxWidth()) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .background(MaterialTheme.colorScheme.background)
+                            .horizontalScroll(rememberScrollState())
+                            .padding(horizontal = 8.dp, vertical = 2.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(2.dp)
+                    ) {
+                        // 1. MODO (Solo icono)
+                        EditorToolbarIconButton(
+                            icon = if (state.isEditable) Icons.Filled.Check else Icons.Filled.Edit,
+                            contentDescription = if (state.isEditable) stringResource(R.string.editor_action_view) else stringResource(R.string.editor_action_edit),
+                            isActive = state.isEditable,
+                            activeColor = StructaPurple,
+                            onClick = {
+                                if (state.isEditable) keyboardController?.hide()
+                                state.inputSession?.finishComposingText()
+                                onToggleEditable()
+                            }
                         )
-                    }
-                    DropdownMenu(expanded = showFileMenu, onDismissRequest = { showFileMenu = false },
-                         modifier = Modifier.widthIn(min = 220.dp).border(1.dp,
-                             MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(18.dp)),
-                         shape = RoundedCornerShape(18.dp),
-                         containerColor = MaterialTheme.colorScheme.surfaceContainerHigh) {
-                         EditorMenuOption(stringResource(R.string.editor_open), Icons.Filled.FolderOpen) {
-                             showFileMenu = false; dispatch(EditorAction.QUICK_OPEN)
-                         }
-                         EditorMenuOption(stringResource(R.string.editor_save), Icons.Filled.Save,
-                             enabled = enabled(EditorAction.SAVE)) { showFileMenu = false; dispatch(EditorAction.SAVE) }
-                          EditorMenuOption(stringResource(R.string.editor_save_as), Icons.Filled.SaveAs,
-                              enabled = state.tabs.isNotEmpty() && !state.saving && state.pendingSave == null) {
-                              showFileMenu = false; state.inputSession?.finishComposingText(); showSaveAsDialog = true
-                          }
-                          EditorMenuOption(stringResource(R.string.editor_save_all), Icons.Filled.Save,
-                              enabled = state.tabs.any { it.dirty } && !state.loading && !state.saving &&
-                                  state.pendingSave == null && state.pendingClose == null) {
-                              showFileMenu = false; onSaveAll()
-                          }
-                          HorizontalDivider()
-                          EditorMenuOption(stringResource(R.string.editor_close), Icons.Filled.Close,
-                              enabled = enabled(EditorAction.CLOSE)) { showFileMenu = false; dispatch(EditorAction.CLOSE) }
-                          EditorMenuOption(stringResource(R.string.editor_close_all), Icons.Filled.ClearAll,
-                              enabled = state.tabs.isNotEmpty() && !state.loading && state.pendingClose == null && !state.saving) {
-                              showFileMenu = false; onCloseAll()
-                          }
-                          EditorMenuOption(stringResource(R.string.editor_close_others), Icons.Filled.Close,
-                              enabled = state.tabs.size > 1 && entry != null && !state.loading && state.pendingClose == null && !state.saving) {
-                              showFileMenu = false; onCloseOthers()
-                          }
-                     }
-                 }
-                 Box {
-                     IconButton(onClick = { dispatch(EditorAction.COMMAND_PALETTE) }) {
-                         Icon(Icons.Filled.MoreVert, contentDescription = stringResource(R.string.editor_edit_menu_description))
-                     }
-                     DropdownMenu(expanded = showEditMenu, onDismissRequest = { showEditMenu = false },
-                         modifier = Modifier.widthIn(min = 260.dp).border(1.dp,
-                             MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(18.dp)),
-                         shape = RoundedCornerShape(18.dp),
-                         containerColor = MaterialTheme.colorScheme.surfaceContainerHigh) {
-                          listOf(Triple(EditorAction.FIND, Icons.Filled.Search, R.string.editor_shortcut_find),
-                              Triple(EditorAction.REPLACE, Icons.Filled.FindReplace, R.string.editor_shortcut_replace),
-                              Triple(EditorAction.GO_TO_LINE, Icons.Filled.FormatListNumbered, R.string.editor_shortcut_line))
-                              .forEach { (action, icon, shortcut) ->
-                                  EditorMenuOption(actionName(action), icon, stringResource(shortcut), enabled(action)) {
-                                      showEditMenu = false; dispatch(action)
-                                  }
-                              }
-                          EditorMenuOption(actionName(EditorAction.GLOBAL_SEARCH), Icons.Filled.Search, "Ctrl+Shift+F", enabled(EditorAction.GLOBAL_SEARCH)) {
-                              showEditMenu = false; dispatch(EditorAction.GLOBAL_SEARCH)
-                          }
-                          EditorMenuOption(actionName(EditorAction.DOCUMENT_OUTLINE), Icons.Filled.FormatListNumbered, "Ctrl+Shift+O", enabled(EditorAction.DOCUMENT_OUTLINE)) {
-                              showEditMenu = false; dispatch(EditorAction.DOCUMENT_OUTLINE)
-                          }
 
-                          EditorMenuOption(stringResource(R.string.editor_go_to_start), Icons.Filled.ArrowUpward,
-                              enabled = enabled(EditorAction.GO_TO_LINE)) {
-                              showEditMenu = false; state.inputSession?.finishComposingText(); onGoToStart()
-                          }
-                          EditorMenuOption(stringResource(R.string.editor_go_to_end), Icons.Filled.ArrowDownward,
-                              enabled = enabled(EditorAction.GO_TO_LINE)) {
-                              showEditMenu = false; state.inputSession?.finishComposingText(); onGoToEnd()
-                          }
-                          HorizontalDivider()
-                         listOf(Triple(EditorAction.UNDO, Icons.AutoMirrored.Filled.Undo, R.string.editor_shortcut_undo),
-                             Triple(EditorAction.REDO, Icons.AutoMirrored.Filled.Redo, R.string.editor_shortcut_redo))
-                             .forEach { (action, icon, shortcut) ->
-                                 EditorMenuOption(actionName(action), icon, stringResource(shortcut), enabled(action)) {
-                                     showEditMenu = false; dispatch(action)
-                                 }
-                             }
-                         HorizontalDivider()
-                         EditorMenuOption(actionName(EditorAction.FORMAT), Icons.Filled.AutoFixHigh,
-                             enabled = enabled(EditorAction.FORMAT)) { showEditMenu = false; dispatch(EditorAction.FORMAT) }
-                          EditorMenuOption(stringResource(R.string.editor_format), Icons.Filled.Code,
-                              enabled = entry != null && !state.loading, submenu = true) {
-                              showEditMenu = false; showFormatMenu = true
-                          }
-                          EditorMenuOption("Codificación", Icons.Filled.Translate,
-                              enabled = entry != null && !state.loading, submenu = true) {
-                              showEditMenu = false; showEncodingMenu = true
-                          }
-                          EditorMenuOption(stringResource(R.string.editor_word_wrap), Icons.AutoMirrored.Filled.WrapText,
-                              enabled = entry != null && !state.loading,
-                              checked = state.viewState.wordWrapMode == WordWrapMode.VIEWPORT) {
-                              showEditMenu = false
-                              state.viewState.wordWrapMode = if (state.viewState.wordWrapMode == WordWrapMode.OFF)
-                                  WordWrapMode.VIEWPORT else WordWrapMode.OFF
-                          }
-                     }
-                 }
-             })
-    }) { padding ->
+                        // 2. VISTA PREVIA (Solo icono, visible si es Markdown y en lectura)
+                        if (isMarkdown && !state.isEditable) {
+                            EditorToolbarIconButton(
+                                icon = if (renderMarkdown) Icons.Filled.Code else Icons.Filled.Description,
+                                contentDescription = if (renderMarkdown) stringResource(R.string.editor_action_view_raw) else stringResource(R.string.editor_action_view_rendered),
+                                isActive = renderMarkdown,
+                                activeColor = Color(0xFF4F46E5),
+                                onClick = {
+                                    renderMarkdown = !renderMarkdown
+                                    onShowMessage(if (renderMarkdown) "Vista previa Markdown" else "Código fuente Markdown")
+                                }
+                            )
+                        }
+
+                        // Separador sutil
+                        Box(
+                            modifier = Modifier
+                                .padding(horizontal = 4.dp)
+                                .height(16.dp)
+                                .width(1.dp)
+                                .background(MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f))
+                        )
+
+                        // 3. ARCHIVO (Menú)
+                        Box {
+                            EditorToolbarMenuButton(
+                                text = "Archivo",
+                                icon = Icons.AutoMirrored.Filled.InsertDriveFile,
+                                onClick = {
+                                    showEditMenu = false
+                                    showNavMenu = false
+                                    showMoreMenu = false
+                                    showFileMenu = true
+                                }
+                            )
+                            DropdownMenu(
+                                expanded = showFileMenu,
+                                onDismissRequest = { showFileMenu = false },
+                                modifier = Modifier
+                                    .widthIn(min = 220.dp)
+                                    .border(1.dp, MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(18.dp)),
+                                shape = RoundedCornerShape(18.dp),
+                                containerColor = MaterialTheme.colorScheme.surfaceContainerHigh
+                            ) {
+                                EditorMenuOption(stringResource(R.string.editor_open), Icons.Filled.FolderOpen) {
+                                    showFileMenu = false; dispatch(EditorAction.QUICK_OPEN)
+                                }
+                                EditorMenuOption(stringResource(R.string.editor_save), Icons.Filled.Save,
+                                    enabled = enabled(EditorAction.SAVE)) { showFileMenu = false; dispatch(EditorAction.SAVE) }
+                                EditorMenuOption(stringResource(R.string.editor_save_as), Icons.Filled.SaveAs,
+                                    enabled = state.tabs.isNotEmpty() && !state.saving && state.pendingSave == null) {
+                                    showFileMenu = false; state.inputSession?.finishComposingText(); showSaveAsDialog = true
+                                }
+                                EditorMenuOption(stringResource(R.string.editor_save_all), Icons.Filled.Save,
+                                    enabled = state.tabs.any { it.dirty } && !state.loading && !state.saving &&
+                                        state.pendingSave == null && state.pendingClose == null) {
+                                    showFileMenu = false; onSaveAll()
+                                }
+                                HorizontalDivider()
+                                EditorMenuOption(stringResource(R.string.editor_close), Icons.Filled.Close,
+                                    enabled = enabled(EditorAction.CLOSE)) { showFileMenu = false; dispatch(EditorAction.CLOSE) }
+                                EditorMenuOption(stringResource(R.string.editor_close_all), Icons.Filled.ClearAll,
+                                    enabled = state.tabs.isNotEmpty() && !state.loading && state.pendingClose == null && !state.saving) {
+                                    showFileMenu = false; onCloseAll()
+                                }
+                                EditorMenuOption(stringResource(R.string.editor_close_others), Icons.Filled.Close,
+                                    enabled = state.tabs.size > 1 && entry != null && !state.loading && state.pendingClose == null && !state.saving) {
+                                    showFileMenu = false; onCloseOthers()
+                                }
+                            }
+                        }
+
+                        // 4. EDITAR (Menú)
+                        Box {
+                            EditorToolbarMenuButton(
+                                text = "Editar",
+                                icon = Icons.Filled.Edit,
+                                onClick = {
+                                    showFileMenu = false
+                                    showNavMenu = false
+                                    showMoreMenu = false
+                                    showEditMenu = true
+                                }
+                            )
+                            DropdownMenu(
+                                expanded = showEditMenu,
+                                onDismissRequest = { showEditMenu = false },
+                                modifier = Modifier
+                                    .widthIn(min = 250.dp)
+                                    .border(1.dp, MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(18.dp)),
+                                shape = RoundedCornerShape(18.dp),
+                                containerColor = MaterialTheme.colorScheme.surfaceContainerHigh
+                            ) {
+                                listOf(
+                                    Triple(EditorAction.UNDO, Icons.AutoMirrored.Filled.Undo, R.string.editor_shortcut_undo),
+                                    Triple(EditorAction.REDO, Icons.AutoMirrored.Filled.Redo, R.string.editor_shortcut_redo)
+                                ).forEach { (action, icon, shortcut) ->
+                                    EditorMenuOption(actionName(action), icon, stringResource(shortcut), enabled(action)) {
+                                        showEditMenu = false; dispatch(action)
+                                    }
+                                }
+                                HorizontalDivider()
+                                listOf(
+                                    Triple(EditorAction.FIND, Icons.Filled.Search, R.string.editor_shortcut_find),
+                                    Triple(EditorAction.REPLACE, Icons.Filled.FindReplace, R.string.editor_shortcut_replace)
+                                ).forEach { (action, icon, shortcut) ->
+                                    EditorMenuOption(actionName(action), icon, stringResource(shortcut), enabled(action)) {
+                                        showEditMenu = false; dispatch(action)
+                                    }
+                                }
+                                EditorMenuOption(actionName(EditorAction.GLOBAL_SEARCH), Icons.Filled.Search, "Ctrl+Shift+F", enabled(EditorAction.GLOBAL_SEARCH)) {
+                                    showEditMenu = false; dispatch(EditorAction.GLOBAL_SEARCH)
+                                }
+                            }
+                        }
+
+                        // 5. NAVEGACIÓN (Menú)
+                        Box {
+                            EditorToolbarMenuButton(
+                                text = "Navegación",
+                                icon = Icons.Filled.FormatListNumbered,
+                                onClick = {
+                                    showFileMenu = false
+                                    showEditMenu = false
+                                    showMoreMenu = false
+                                    showNavMenu = true
+                                }
+                            )
+                            DropdownMenu(
+                                expanded = showNavMenu,
+                                onDismissRequest = { showNavMenu = false },
+                                modifier = Modifier
+                                    .widthIn(min = 240.dp)
+                                    .border(1.dp, MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(18.dp)),
+                                shape = RoundedCornerShape(18.dp),
+                                containerColor = MaterialTheme.colorScheme.surfaceContainerHigh
+                            ) {
+                                EditorMenuOption(
+                                    actionName(EditorAction.GO_TO_LINE),
+                                    Icons.Filled.FormatListNumbered,
+                                    stringResource(R.string.editor_shortcut_line),
+                                    enabled(EditorAction.GO_TO_LINE)
+                                ) {
+                                    showNavMenu = false; dispatch(EditorAction.GO_TO_LINE)
+                                }
+                                EditorMenuOption(
+                                    actionName(EditorAction.DOCUMENT_OUTLINE),
+                                    Icons.Filled.FormatListNumbered,
+                                    "Ctrl+Shift+O",
+                                    enabled(EditorAction.DOCUMENT_OUTLINE)
+                                ) {
+                                    showNavMenu = false; dispatch(EditorAction.DOCUMENT_OUTLINE)
+                                }
+                                HorizontalDivider()
+                                EditorMenuOption(
+                                    stringResource(R.string.editor_go_to_start),
+                                    Icons.Filled.ArrowUpward,
+                                    enabled = enabled(EditorAction.GO_TO_LINE)
+                                ) {
+                                    showNavMenu = false
+                                    state.inputSession?.finishComposingText()
+                                    onGoToStart()
+                                }
+                                EditorMenuOption(
+                                    stringResource(R.string.editor_go_to_end),
+                                    Icons.Filled.ArrowDownward,
+                                    enabled = enabled(EditorAction.GO_TO_LINE)
+                                ) {
+                                    showNavMenu = false
+                                    state.inputSession?.finishComposingText()
+                                    onGoToEnd()
+                                }
+                            }
+                        }
+
+                        // 6. MÁS (Menú)
+                        Box {
+                            EditorToolbarMenuButton(
+                                text = "Más",
+                                icon = Icons.Filled.MoreHoriz,
+                                onClick = {
+                                    showFileMenu = false
+                                    showEditMenu = false
+                                    showNavMenu = false
+                                    showMoreMenu = true
+                                }
+                            )
+                            DropdownMenu(
+                                expanded = showMoreMenu,
+                                onDismissRequest = { showMoreMenu = false },
+                                modifier = Modifier
+                                    .widthIn(min = 240.dp)
+                                    .border(1.dp, MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(18.dp)),
+                                shape = RoundedCornerShape(18.dp),
+                                containerColor = MaterialTheme.colorScheme.surfaceContainerHigh
+                            ) {
+                                EditorMenuOption(
+                                    actionName(EditorAction.FORMAT),
+                                    Icons.Filled.AutoFixHigh,
+                                    enabled = enabled(EditorAction.FORMAT)
+                                ) {
+                                    showMoreMenu = false
+                                    dispatch(EditorAction.FORMAT)
+                                }
+                                EditorMenuOption(
+                                    stringResource(R.string.editor_format),
+                                    Icons.Filled.Code,
+                                    enabled = entry != null && !state.loading,
+                                    submenu = true
+                                ) {
+                                    showMoreMenu = false
+                                    showFormatMenu = true
+                                }
+                                EditorMenuOption(
+                                    "Codificación",
+                                    Icons.Filled.Translate,
+                                    enabled = entry != null && !state.loading,
+                                    submenu = true
+                                ) {
+                                    showMoreMenu = false
+                                    showEncodingMenu = true
+                                }
+                                HorizontalDivider()
+                                EditorMenuOption(
+                                    stringResource(R.string.editor_word_wrap),
+                                    Icons.AutoMirrored.Filled.WrapText,
+                                    enabled = entry != null && !state.loading,
+                                    checked = state.viewState.wordWrapMode == WordWrapMode.VIEWPORT
+                                ) {
+                                    showMoreMenu = false
+                                    state.viewState.wordWrapMode = if (state.viewState.wordWrapMode == WordWrapMode.OFF)
+                                        WordWrapMode.VIEWPORT else WordWrapMode.OFF
+                                    onShowMessage(
+                                        if (state.viewState.wordWrapMode == WordWrapMode.VIEWPORT)
+                                            "Ajuste de línea activado"
+                                        else
+                                            "Ajuste de línea desactivado"
+                                    )
+                                }
+                            }
+                        }
+                    }
+                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.2f))
+                }
+            }
+        }
+        }) { padding ->
         Column(Modifier.fillMaxSize().padding(padding).imePadding()) {
              if (state.tabs.size > 1) {
                  EditorTabStrip(state.tabs, onSelectDocument, onCloseDocument)
@@ -1437,6 +1610,61 @@ fun DraftRecoveryBanner(
                     )
                 }
             }
+        }
+    }
+}
+
+
+@Composable
+private fun EditorToolbarIconButton(
+    icon: ImageVector,
+    contentDescription: String,
+    isActive: Boolean,
+    activeColor: Color = StructaLavender,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    IconButton(
+        onClick = onClick,
+        modifier = modifier.size(36.dp)
+    ) {
+        Icon(
+            imageVector = icon,
+            contentDescription = contentDescription,
+            modifier = Modifier.size(19.dp),
+            tint = if (isActive) activeColor else MaterialTheme.colorScheme.onSurfaceVariant
+        )
+    }
+}
+
+@Composable
+private fun EditorToolbarMenuButton(
+    text: String,
+    icon: ImageVector? = null,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Box(
+        modifier = modifier
+            .clip(RoundedCornerShape(8.dp))
+            .clickable(onClick = onClick)
+            .padding(horizontal = 8.dp, vertical = 6.dp)
+    ) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(2.dp)
+        ) {
+            Text(
+                text = text,
+                style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Medium),
+                color = MaterialTheme.colorScheme.onSurface
+            )
+            Icon(
+                imageVector = Icons.Filled.ArrowDropDown,
+                contentDescription = null,
+                modifier = Modifier.size(16.dp),
+                tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
+            )
         }
     }
 }

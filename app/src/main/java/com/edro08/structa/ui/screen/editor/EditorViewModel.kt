@@ -241,7 +241,10 @@ class EditorViewModel(
     fun toggleEditable() {
         val current = state.value
         val next = !current.isEditable
-        mutableState.value = current.copy(isEditable = next)
+        mutableState.value = current.copy(
+            isEditable = next,
+            message = if (next) "Modo Edición activado" else "Modo Lectura activado"
+        )
         val id = current.entry?.id ?: return
         documents[id]?.let { doc ->
             documents[id] = doc.copy(isEditable = next)
