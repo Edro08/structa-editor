@@ -1,5 +1,16 @@
 # Historial de Structa
 
+## 2026-11-04 — Fase 21 (Paso 4): Acción «Compartir archivo» con FileProvider Seguro
+
+- **Acción Compartir Integrada en el Editor (`EditorScreen.kt` & `StructaApp.kt`)**:
+  - Incorporada opción «Compartir…» (`Icons.Filled.Share`) dentro del menú desplegable `Archivo` en la barra de herramientas del editor.
+  - Generación de `Intent(Intent.ACTION_SEND)` con tipo MIME dinámico (Markdown, JSON, XML, YAML o texto plano) y título `EXTRA_SUBJECT`.
+- **Integración Segura de `FileProvider` (`file_paths.xml` & `AndroidManifest.xml`)**:
+  - Configurado `FileProvider` oficial de Android para compartir el archivo adjunto (`EXTRA_STREAM`) con permisos temporales de lectura seguros (`FLAG_GRANT_READ_URI_PERMISSION`).
+  - Fallback automático para compartir el contenido del buffer (`EXTRA_TEXT`) en aplicaciones receptoras de texto.
+- **Verificación**:
+  - Compilación completa de APK de depuración (`:app:assembleDebug`) y pruebas unitarias (`:app:testDebugUnitTest`) aprobadas.
+
 ## 2026-11-04 — Fase 21 (Paso 3): Blindaje de Filesystem contra Symlink Escape & Path Traversal
 
 - **Verificación de Frontera Canónica en Creación y Renombrado (`DirectFileSystem.kt`)**:
