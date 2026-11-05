@@ -145,13 +145,15 @@ class SearchWorkspace(
 
         for ((file, fileMatches) in groupedByFile) {
             coroutineContext.ensureActive()
-            val content = try {
-                fileReader.read(file.entry)
+            val decoded = try {
+                fileReader.readWithCharset(file.entry, null)
             } catch (_: Exception) {
                 continue
             }
+            val content = decoded.text
+            val lineSeparator = if ("\r\n" in content) "\r\n" else "\n"
 
-            val lines = content.lines().toMutableList()
+            val lines = content.split("\r\n", "\n").toMutableList()
             val matchesByLine = fileMatches.groupBy { it.line }
 
             for ((lineIdx, lineMatches) in matchesByLine) {
@@ -169,9 +171,9 @@ class SearchWorkspace(
                 }
             }
 
-            val newContent = lines.joinToString("\n")
+            val newContent = lines.joinToString(lineSeparator)
             try {
-                writer.write(file.entry.id, newContent)
+                writer.writeWithCharset(file.entry.id, newContent, decoded.charset)
             } catch (_: Exception) {
             }
         }

@@ -85,4 +85,47 @@ class SearchWorkspaceTest {
         assertEquals(2, replacedCount)
         assertEquals("val baz = 1\nval bazBar = 2", written[fileId])
     }
+
+    @Test
+    fun batchReplacePreservesCharsetAndCrlfLineEndings() = runTest {
+        val fileId = DocumentId("windows.txt")
+        var savedCharset: com.edro08.structa.domain.editor.encoding.DocumentCharset? = null
+        var savedContent: String? = null
+
+        val fileEntry = FileEntry(fileId, "windows.txt", sizeBytes = 40L, isDirectory = false)
+        val dirReader = object : DirectoryReader {
+            override suspend fun list(directory: DocumentId) = listOf(fileEntry)
+        }
+        val fileReader = object : FileReader {
+            override suspend fun read(file: FileEntry) = "alpha = old\r\nbeta = old"
+            override suspend fun readWithCharset(
+                file: FileEntry,
+                explicitCharset: com.edro08.structa.domain.editor.encoding.DocumentCharset?
+            ) = com.edro08.structa.domain.editor.encoding.DecodedContent(
+                "alpha = old\r\nbeta = old",
+                com.edro08.structa.domain.editor.encoding.DocumentCharset.WINDOWS_1252
+            )
+        }
+        val fileWriter = object : FileWriter {
+            override suspend fun write(destination: DocumentId, content: String) {
+                savedContent = content
+            }
+            override suspend fun writeWithCharset(
+                destination: DocumentId,
+                content: String,
+                charset: com.edro08.structa.domain.editor.encoding.DocumentCharset
+            ) {
+                savedContent = content
+                savedCharset = charset
+            }
+        }
+
+        val searcher = SearchWorkspace(ListDirectory(dirReader), fileReader, fileWriter)
+        val searchResult = searcher.search(DocumentId("root"), "old", caseSensitive = true)
+        val replacedCount = searcher.replaceInFiles(searchResult.matches, "new")
+
+        assertEquals(2, replacedCount)
+        assertEquals("alpha = new\r\nbeta = new", savedContent)
+        assertEquals(com.edro08.structa.domain.editor.encoding.DocumentCharset.WINDOWS_1252, savedCharset)
+    }
 }

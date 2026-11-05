@@ -106,8 +106,8 @@ fun FolderPickerDialog(
                 currentFolder.listFiles()
                     ?.filter { file ->
                         file.isDirectory && !file.name.startsWith(".") && file.canRead() &&
-                            !file.name.equals("data", ignoreCase = true) &&
-                            !file.name.equals("obb", ignoreCase = true)
+                            !(currentFolder.name.equals("Android", ignoreCase = true) && file.name.equals("data", ignoreCase = true)) &&
+                            !(currentFolder.name.equals("Android", ignoreCase = true) && file.name.equals("obb", ignoreCase = true))
                     }
                     ?.sortedWith(compareBy(String.CASE_INSENSITIVE_ORDER) { it.name })
                     ?: emptyList()
@@ -122,7 +122,7 @@ fun FolderPickerDialog(
 
     val canGoUp = remember(currentFolder) {
         val parent = currentFolder.parentFile
-        parent != null && parent.canRead() && currentFolder.absolutePath != "/"
+        parent != null && parent.canRead() && currentFolder.absolutePath != "/" && storageVolumes.none { it.root.absolutePath == currentFolder.absolutePath }
     }
 
     val filteredFolders = remember(subfolders, searchQuery) {
@@ -482,7 +482,7 @@ fun FolderPickerDialog(
                 Button(
                     onClick = {
                         val name = newFolderName.trim()
-                        if (name.isEmpty() || name.contains('/') || name.contains('\\')) {
+                        if (!com.edro08.structa.data.filesystem.direct.DirectFileSystem.isValidName(name) || (currentFolder.name.equals("Android", ignoreCase = true) && (name.equals("data", ignoreCase = true) || name.equals("obb", ignoreCase = true))) || try { File(currentFolder, name).canonicalFile.parentFile?.canonicalPath != currentFolder.canonicalFile.canonicalPath } catch (_: Exception) { true }) {
                             createFolderError = "Nombre no válido"
                         } else {
                             val target = File(currentFolder, name)

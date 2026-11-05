@@ -136,7 +136,7 @@ fun StructaApp(openIntent: Intent? = null, onOpenIntentHandled: (Intent) -> Unit
 
                 val grants = openIntent.flags and
 
-                    (Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION)
+                    (Intent.FLAG_GRANT_READ_URI_PERMISSION or (if (openIntent.action == Intent.ACTION_EDIT) Intent.FLAG_GRANT_WRITE_URI_PERMISSION else 0))
 
                 if (openIntent.flags and Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION != 0 && grants != 0) {
 

@@ -1,5 +1,10 @@
 package com.edro08.structa.data.filesystem.direct
 
+import android.content.Context
+import android.net.Uri
+import com.edro08.structa.data.filesystem.externalDocument
+import com.edro08.structa.data.filesystem.readExternalDocument
+import com.edro08.structa.data.filesystem.writeExternalDocument
 import com.edro08.structa.domain.document.DocumentId
 import com.edro08.structa.domain.document.MAX_EDITABLE_BYTES
 import com.edro08.structa.domain.editor.encoding.CharsetDetector
@@ -10,12 +15,14 @@ import com.edro08.structa.domain.filesystem.FileSystem
 import java.io.File
 import java.io.IOException
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.withContext
 
 /** Shared storage via real paths; never traverses Android/data or Android/obb. */
-class DirectFileSystem : FileSystem {
+class DirectFileSystem(private val context: Context? = null) : FileSystem {
     override val key = "direct"
+
+    private fun isContentUri(id: DocumentId): Boolean =
+        context != null && id.value.startsWith("content://")
 
     private fun file(id: DocumentId): File {
         if (!File(id.value).isAbsolute) throw IOException("La ruta de la carpeta no es válida")
@@ -33,9 +40,23 @@ class DirectFileSystem : FileSystem {
             if (file.isDirectory) 0 else file.length(), file.isDirectory)
     }
 
-    override suspend fun stat(id: DocumentId): FileEntry = withContext(Dispatchers.IO) { entry(file(id)) }
+    override suspend fun stat(id: DocumentId): FileEntry = withContext(Dispatchers.IO) {
+        if (isContentUri(id)) externalDocument(context!!, Uri.parse(id.value))
+        else entry(file(id))
+    }
 
-    override suspend fun exists(id: DocumentId): Boolean = withContext(Dispatchers.IO) { file(id).exists() }
+    override suspend fun exists(id: DocumentId): Boolean = withContext(Dispatchers.IO) {
+        if (isContentUri(id)) {
+            try {
+                externalDocument(context!!, Uri.parse(id.value))
+                true
+            } catch (_: Exception) {
+                false
+            }
+        } else {
+            file(id).exists()
+        }
+    }
 
     override suspend fun list(directory: DocumentId): List<FileEntry> = withContext(Dispatchers.IO) {
         val folder = file(directory)
@@ -50,6 +71,9 @@ class DirectFileSystem : FileSystem {
     override suspend fun read(file: FileEntry): String = readWithCharset(file).text
 
     override suspend fun readWithCharset(file: FileEntry, explicitCharset: DocumentCharset?): DecodedContent = withContext(Dispatchers.IO) {
+        if (isContentUri(file.id)) {
+            return@withContext readExternalDocument(context!!, file.id, explicitCharset)
+        }
         val source = file(file.id)
         if (!source.isFile) throw IOException("No se puede leer una carpeta como archivo")
         if (source.length() > MAX_EDITABLE_BYTES) throw IOException("Este archivo supera los 25 MB y aun no puede editarse.")
@@ -64,11 +88,30 @@ class DirectFileSystem : FileSystem {
         writeWithCharset(destination, content, DocumentCharset.DEFAULT)
 
     override suspend fun writeWithCharset(destination: DocumentId, content: String, charset: DocumentCharset): Unit = withContext(Dispatchers.IO) {
+        if (isContentUri(destination)) {
+            writeExternalDocument(context!!, destination, content, charset)
+            return@withContext
+        }
         val target = file(destination)
+        validateName(target.name)
         if (target.exists() && target.isDirectory) throw IOException("No se puede escribir en una carpeta")
-        target.parentFile?.mkdirs()
+        val parent = target.parentFile ?: throw IOException("La ruta de destino no tiene carpeta contenedora")
+        if (!parent.exists() && !parent.mkdirs()) throw IOException("No se pudo crear la carpeta contenedora")
         val bytes = CharsetDetector.encode(content, charset)
-        target.writeBytes(bytes)
+        val tempFile = File(parent, ".${target.name}.${System.nanoTime()}.tmp")
+        try {
+            tempFile.outputStream().use { out ->
+                out.write(bytes)
+                try { out.fd.sync() } catch (_: Exception) {}
+            }
+            if (!tempFile.renameTo(target)) {
+                target.writeBytes(bytes)
+                tempFile.delete()
+            }
+        } catch (e: Exception) {
+            tempFile.delete()
+            throw if (e is IOException) e else IOException("No se pudo guardar el archivo", e)
+        }
     }
 
     override suspend fun create(parent: DocumentId, name: String, directory: Boolean): FileEntry = withContext(Dispatchers.IO) {
@@ -106,9 +149,14 @@ class DirectFileSystem : FileSystem {
         if (!target.delete()) throw IOException("No se pudo eliminar el archivo (las carpetas deben estar vacías)")
     }
 
-    private fun validateName(name: String) {
-        require(name.isNotBlank() && name != "." && name != ".." && !name.contains("..") && name.none {
-            it == '/' || it == '\\' || it == '\u0000' || it < ' '
-        }) { "Nombre de archivo no válido" }
+    companion object {
+        fun isValidName(name: String): Boolean =
+            name.isNotBlank() && name != "." && name != ".." && !name.contains("..") && name.none {
+                it == '/' || it == '\\' || it == '\u0000' || it < ' '
+            }
+
+        fun validateName(name: String) {
+            require(isValidName(name)) { "Nombre de archivo no válido" }
+        }
     }
 }

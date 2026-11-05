@@ -131,4 +131,18 @@ class FileDraftRepositoryTest {
         assertNotNull(loaded)
         assertEquals("", loaded!!.content)
     }
+
+    @Test
+    fun documentIdWithNewlines_isSanitizedAgainstHeaderInjection() {
+        val rawId = DocumentId("/storage/evil\nCHARSET:UTF_16_BE\n---CONTENT---\ninjected")
+        val draft = DocumentDraft(rawId, "Real Content", 900L, charset = DocumentCharset.UTF_8)
+
+        repository.saveDraft(draft)
+        val loaded = repository.loadDraft(rawId)
+
+        assertNotNull(loaded)
+        assertEquals("Real Content", loaded!!.content)
+        assertEquals(DocumentCharset.UTF_8, loaded.charset)
+        assertFalse(loaded.documentId.value.contains("\n"))
+    }
 }
